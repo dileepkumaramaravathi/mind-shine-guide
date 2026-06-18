@@ -16,10 +16,12 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedWellnessRouteImport } from './routes/_authenticated/wellness'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedMoodRouteImport } from './routes/_authenticated/mood'
 import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
 import { Route as AuthenticatedDetectRouteImport } from './routes/_authenticated/detect'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedCommunityRouteImport } from './routes/_authenticated/community'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
 
@@ -57,6 +59,12 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNotificationsRoute =
+  AuthenticatedNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMoodRoute = AuthenticatedMoodRouteImport.update({
   id: '/mood',
   path: '/mood',
@@ -77,6 +85,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCommunityRoute = AuthenticatedCommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
   id: '/chat',
   path: '/chat',
@@ -95,10 +108,12 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/chat': typeof AuthenticatedChatRoute
+  '/community': typeof AuthenticatedCommunityRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/detect': typeof AuthenticatedDetectRoute
   '/journal': typeof AuthenticatedJournalRoute
   '/mood': typeof AuthenticatedMoodRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/wellness': typeof AuthenticatedWellnessRoute
 }
@@ -109,10 +124,12 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/chat': typeof AuthenticatedChatRoute
+  '/community': typeof AuthenticatedCommunityRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/detect': typeof AuthenticatedDetectRoute
   '/journal': typeof AuthenticatedJournalRoute
   '/mood': typeof AuthenticatedMoodRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/wellness': typeof AuthenticatedWellnessRoute
 }
@@ -125,10 +142,12 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
   '/_authenticated/chat': typeof AuthenticatedChatRoute
+  '/_authenticated/community': typeof AuthenticatedCommunityRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/detect': typeof AuthenticatedDetectRoute
   '/_authenticated/journal': typeof AuthenticatedJournalRoute
   '/_authenticated/mood': typeof AuthenticatedMoodRoute
+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/wellness': typeof AuthenticatedWellnessRoute
 }
@@ -141,10 +160,12 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/analytics'
     | '/chat'
+    | '/community'
     | '/dashboard'
     | '/detect'
     | '/journal'
     | '/mood'
+    | '/notifications'
     | '/profile'
     | '/wellness'
   fileRoutesByTo: FileRoutesByTo
@@ -155,10 +176,12 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/analytics'
     | '/chat'
+    | '/community'
     | '/dashboard'
     | '/detect'
     | '/journal'
     | '/mood'
+    | '/notifications'
     | '/profile'
     | '/wellness'
   id:
@@ -170,10 +193,12 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/analytics'
     | '/_authenticated/chat'
+    | '/_authenticated/community'
     | '/_authenticated/dashboard'
     | '/_authenticated/detect'
     | '/_authenticated/journal'
     | '/_authenticated/mood'
+    | '/_authenticated/notifications'
     | '/_authenticated/profile'
     | '/_authenticated/wellness'
   fileRoutesById: FileRoutesById
@@ -237,6 +262,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mood': {
       id: '/_authenticated/mood'
       path: '/mood'
@@ -265,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/community': {
+      id: '/_authenticated/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof AuthenticatedCommunityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/chat': {
       id: '/_authenticated/chat'
       path: '/chat'
@@ -285,10 +324,12 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
   AuthenticatedChatRoute: typeof AuthenticatedChatRoute
+  AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDetectRoute: typeof AuthenticatedDetectRoute
   AuthenticatedJournalRoute: typeof AuthenticatedJournalRoute
   AuthenticatedMoodRoute: typeof AuthenticatedMoodRoute
+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedWellnessRoute: typeof AuthenticatedWellnessRoute
 }
@@ -296,10 +337,12 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnalyticsRoute: AuthenticatedAnalyticsRoute,
   AuthenticatedChatRoute: AuthenticatedChatRoute,
+  AuthenticatedCommunityRoute: AuthenticatedCommunityRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDetectRoute: AuthenticatedDetectRoute,
   AuthenticatedJournalRoute: AuthenticatedJournalRoute,
   AuthenticatedMoodRoute: AuthenticatedMoodRoute,
+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedWellnessRoute: AuthenticatedWellnessRoute,
 }

@@ -1,5 +1,6 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Sparkles,
@@ -13,6 +14,8 @@ import {
   Menu,
   X,
   Brain,
+  Users,
+  Bell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -25,6 +28,8 @@ const NAV = [
   { to: "/journal", label: "Journal", icon: BookHeart },
   { to: "/analytics", label: "Analytics", icon: LineChart },
   { to: "/wellness", label: "Wellness", icon: HeartPulse },
+  { to: "/community", label: "Community", icon: Users },
+  { to: "/notifications", label: "Notifications", icon: Bell, badge: true },
   { to: "/profile", label: "Profile", icon: UserRound },
 ] as const;
 
@@ -35,6 +40,18 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
   useEffect(() => setOpen(false), [pathname]);
 
+  const { data: unread = 0 } = useQuery({
+    queryKey: ["notif-unread"],
+    queryFn: async () => {
+      const { count } = await (supabase as any)
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("read", false);
+      return count ?? 0;
+    },
+    refetchInterval: 30000,
+  });
+
   const signOut = async () => {
     await supabase.auth.signOut();
     router.navigate({ to: "/auth", replace: true });
@@ -44,7 +61,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
     <div className="min-h-screen flex">
       {/* sidebar — desktop */}
       <aside className="hidden lg:flex w-64 shrink-0 flex-col p-4 border-r border-border/40">
-        <SidebarInner pathname={pathname} signOut={signOut} />
+        <SidebarInner pathname={pathname} signOut={signOut} unread={unread} />
       </aside>
 
       {/* mobile drawer */}
@@ -55,7 +72,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             className="absolute left-0 top-0 h-full w-72 p-4 glass"
             onClick={(e) => e.stopPropagation()}
           >
-            <SidebarInner pathname={pathname} signOut={signOut} />
+            <SidebarInner pathname={pathname} signOut={signOut} unread={unread} />
           </aside>
         </div>
       )}
@@ -70,6 +87,20 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             {open ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
           {title && <h1 className="text-lg font-display font-semibold">{title}</h1>}
+          <div className="ml-auto">
+            <Link
+              to="/notifications"
+              className="relative p-2 rounded-lg hover:bg-muted inline-flex items-center"
+              aria-label="Notifications"
+            >
+              <Bell className="size-5" />
+              {unread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center">
+                  {unread}
+                </span>
+              )}
+            </Link>
+          </div>
         </header>
         <div className="flex-1 p-4 lg:p-8">{children}</div>
       </main>
@@ -77,7 +108,15 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   );
 }
 
-function SidebarInner({ pathname, signOut }: { pathname: string; signOut: () => void }) {
+function SidebarInner({
+  pathname,
+  signOut,
+  unread,
+}: {
+  pathname: string;
+  signOut: () => void;
+  unread: number;
+}) {
   return (
     <>
       <Link to="/dashboard" className="flex items-center gap-2 px-2 py-3 mb-4">
@@ -95,6 +134,7 @@ function SidebarInner({ pathname, signOut }: { pathname: string; signOut: () => 
         {NAV.map((item) => {
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
           const Icon = item.icon;
+          const showBadge = "badge" in item && item.badge && unread > 0;
           return (
             <Link
               key={item.to}
@@ -107,7 +147,12 @@ function SidebarInner({ pathname, signOut }: { pathname: string; signOut: () => 
               )}
             >
               <Icon className="size-4" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {showBadge && (
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center">
+                  {unread}
+                </span>
+              )}
             </Link>
           );
         })}
