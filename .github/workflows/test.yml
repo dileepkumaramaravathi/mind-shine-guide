@@ -39,16 +39,27 @@ jobs:
     - name: Run E2E Test Suite and Generate Report
       run: |
         python tests/run_tests_and_report.py
+        if [ -f tests/reports/summary.md ]; then
+          cat tests/reports/summary.md >> $GITHUB_STEP_SUMMARY
+        fi
 
-    - name: Archive Test Reports
+    - name: Archive Frontend Test Report
       uses: actions/upload-artifact@v4
       with:
-        name: test-reports
+        name: frontend-test-report
         path: |
           frontend_test_report.xlsx
-          backend_test_report.xlsx
           tests/reports/frontend_test_report.xlsx
+        if-no-files-found: warn
+
+    - name: Archive Backend Test Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: backend-test-report
+        path: |
+          backend_test_report.xlsx
           tests/reports/backend_test_report.xlsx
         if-no-files-found: warn
+
 
 
