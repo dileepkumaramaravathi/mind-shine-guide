@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.handle_new_user_notifications() FROM PUBLIC, anon, authenticated;
