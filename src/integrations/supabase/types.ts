@@ -14,7 +14,204 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          thread_id?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      emotion_results: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          detected_emotion: string
+          emoji: string | null
+          explanation: string | null
+          id: string
+          input_text: string
+          intensity: string | null
+          match_percentage: number | null
+          user_id: string
+          user_mood: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          detected_emotion: string
+          emoji?: string | null
+          explanation?: string | null
+          id?: string
+          input_text: string
+          intensity?: string | null
+          match_percentage?: number | null
+          user_id: string
+          user_mood?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          detected_emotion?: string
+          emoji?: string | null
+          explanation?: string | null
+          id?: string
+          input_text?: string
+          intensity?: string | null
+          match_percentage?: number | null
+          user_id?: string
+          user_mood?: string | null
+        }
+        Relationships: []
+      }
+      journal_entries: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string
+          id: string
+          keywords: string[] | null
+          sentiment: string | null
+          summary: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          keywords?: string[] | null
+          sentiment?: string | null
+          summary?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          keywords?: string[] | null
+          sentiment?: string | null
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      moods: {
+        Row: {
+          created_at: string
+          id: string
+          intensity: number
+          mood: string
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          intensity?: number
+          mood: string
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          intensity?: number
+          mood?: string
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          date_of_birth: string | null
+          full_name: string | null
+          gender: string | null
+          id: string
+          level: number
+          phone: string | null
+          updated_at: string
+          xp: number
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id: string
+          level?: number
+          phone?: string | null
+          updated_at?: string
+          xp?: number
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id?: string
+          level?: number
+          phone?: string | null
+          updated_at?: string
+          xp?: number
+        }
+        Relationships: []
+      }
+      wellness_scores: {
+        Row: {
+          computed_at: string
+          id: string
+          score: number
+          stability_index: number
+          user_id: string
+        }
+        Insert: {
+          computed_at?: string
+          id?: string
+          score: number
+          stability_index: number
+          user_id: string
+        }
+        Update: {
+          computed_at?: string
+          id?: string
+          score?: number
+          stability_index?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
