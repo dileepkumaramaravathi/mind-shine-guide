@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedMoodRouteImport } from './routes/_authenticated/mood'
+import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
 import { Route as AuthenticatedDetectRouteImport } from './routes/_authenticated/detect'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
@@ -48,6 +49,11 @@ const AuthenticatedMoodRoute = AuthenticatedMoodRouteImport.update({
   path: '/mood',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedJournalRoute = AuthenticatedJournalRouteImport.update({
+  id: '/journal',
+  path: '/journal',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDetectRoute = AuthenticatedDetectRouteImport.update({
   id: '/detect',
   path: '/detect',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof AuthenticatedChatRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/detect': typeof AuthenticatedDetectRoute
+  '/journal': typeof AuthenticatedJournalRoute
   '/mood': typeof AuthenticatedMoodRoute
 }
 export interface FileRoutesByTo {
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/chat': typeof AuthenticatedChatRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/detect': typeof AuthenticatedDetectRoute
+  '/journal': typeof AuthenticatedJournalRoute
   '/mood': typeof AuthenticatedMoodRoute
 }
 export interface FileRoutesById {
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/detect': typeof AuthenticatedDetectRoute
+  '/_authenticated/journal': typeof AuthenticatedJournalRoute
   '/_authenticated/mood': typeof AuthenticatedMoodRoute
 }
 export interface FileRouteTypes {
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/dashboard'
     | '/detect'
+    | '/journal'
     | '/mood'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/dashboard'
     | '/detect'
+    | '/journal'
     | '/mood'
   id:
     | '__root__'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chat'
     | '/_authenticated/dashboard'
     | '/_authenticated/detect'
+    | '/_authenticated/journal'
     | '/_authenticated/mood'
   fileRoutesById: FileRoutesById
 }
@@ -182,6 +194,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMoodRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/journal': {
+      id: '/_authenticated/journal'
+      path: '/journal'
+      fullPath: '/journal'
+      preLoaderRoute: typeof AuthenticatedJournalRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/detect': {
       id: '/_authenticated/detect'
       path: '/detect'
@@ -210,6 +229,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedChatRoute: typeof AuthenticatedChatRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDetectRoute: typeof AuthenticatedDetectRoute
+  AuthenticatedJournalRoute: typeof AuthenticatedJournalRoute
   AuthenticatedMoodRoute: typeof AuthenticatedMoodRoute
 }
 
@@ -217,6 +237,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChatRoute: AuthenticatedChatRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDetectRoute: AuthenticatedDetectRoute,
+  AuthenticatedJournalRoute: AuthenticatedJournalRoute,
   AuthenticatedMoodRoute: AuthenticatedMoodRoute,
 }
 
