@@ -49,7 +49,9 @@ jobs:
         name: frontend-test-report
         path: |
           frontend_test_report.xlsx
+          frontend_test_report.md
           tests/reports/frontend_test_report.xlsx
+          tests/reports/frontend_test_report.md
         if-no-files-found: warn
 
     - name: Archive Backend Test Report
@@ -58,8 +60,11 @@ jobs:
         name: backend-test-report
         path: |
           backend_test_report.xlsx
+          backend_test_report.md
           tests/reports/backend_test_report.xlsx
+          tests/reports/backend_test_report.md
         if-no-files-found: warn
+
 
 
 
