@@ -45,8 +45,10 @@ jobs:
       with:
         name: test-reports
         path: |
-          test_report.xlsx
           frontend_test_report.xlsx
-          tests/reports/test_report.xlsx
+          backend_test_report.xlsx
+          tests/reports/frontend_test_report.xlsx
+          tests/reports/backend_test_report.xlsx
         if-no-files-found: warn
+
 

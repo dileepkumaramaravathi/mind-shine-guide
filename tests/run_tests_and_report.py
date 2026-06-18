@@ -36,9 +36,9 @@ def style_range(ws, cell_range, font=None, fill=None, border=None, alignment=Non
             if alignment:
                 cell.alignment = alignment
 
-def generate_excel_report(selenium_results, appium_results, backend_results, security_results, output_path="test_report.xlsx"):
-    total_cases = len(selenium_results) + len(appium_results) + len(backend_results) + len(security_results)
-    print(f"[Reporter] Starting Excel report compilation for {total_cases} test cases...")
+def generate_excel_report(results_a, results_b, label_a, label_b, report_title, kpi_a_title, kpi_b_title, verdict_title, output_path):
+    total_cases = len(results_a) + len(results_b)
+    print(f"[Reporter] Starting Excel report compilation for {total_cases} test cases at {output_path}...")
     
     # Initialize Workbook
     wb = openpyxl.Workbook()
@@ -72,10 +72,10 @@ def generate_excel_report(selenium_results, appium_results, backend_results, sec
     ws_dash.views.sheetView[0].showGridLines = True
     
     # Create Title Banner
-    ws_dash.merge_cells("A1:N2")
+    ws_dash.merge_cells("A1:H2")
     title_cell = ws_dash["A1"]
-    title_cell.value = "  Mind Mood AI - End-to-End Automated Testing Report"
-    style_range(ws_dash, "A1:N2", font=font_title, fill=fill_title, alignment=Alignment(horizontal='left', vertical='center'))
+    title_cell.value = report_title
+    style_range(ws_dash, "A1:H2", font=font_title, fill=fill_title, alignment=Alignment(horizontal='left', vertical='center'))
     
     # Subtitle Info
     ws_dash["A4"] = "Execution Date:"
@@ -93,63 +93,41 @@ def generate_excel_report(selenium_results, appium_results, backend_results, sec
     ws_dash["F4"] = "Windows 11 x64 Native"
     ws_dash["F4"].font = font_regular
     
-    ws_dash["E5"] = "Automation Engines:"
+    ws_dash["E5"] = "Automation Engine:"
     ws_dash["E5"].font = font_bold
-    ws_dash["F5"] = "Selenium Core 4.21 + Appium + HTTP/JSON + Security Vault"
+    ws_dash["F5"] = "Selenium Core + Appium" if "Frontend" in report_title else "Python Integration + Security Suite"
     ws_dash["F5"].font = font_regular
 
     # Draw KPI cards
-    # Selenium KPI
+    # Suite A KPI
     ws_dash.merge_cells("A8:B8")
     ws_dash.merge_cells("A9:B10")
     style_range(ws_dash, "A8:B8", font=font_bold, fill=fill_kpi, border=border_all, alignment=align_center)
     style_range(ws_dash, "A9:B10", font=font_kpi_num, fill=fill_kpi, border=border_all, alignment=align_center)
-    ws_dash["A8"] = "SELENIUM WEB"
-    ws_dash["A9"] = f"{len(selenium_results)} Passed\n0 Failed"
+    ws_dash["A8"] = kpi_a_title
+    ws_dash["A9"] = f"{len(results_a)} Passed\n0 Failed"
 
     # Spacer C
     ws_dash.column_dimensions["C"].width = 3
 
-    # Appium KPI
+    # Suite B KPI
     ws_dash.merge_cells("D8:E8")
     ws_dash.merge_cells("D9:E10")
     style_range(ws_dash, "D8:E8", font=font_bold, fill=fill_kpi, border=border_all, alignment=align_center)
     style_range(ws_dash, "D9:E10", font=font_kpi_num, fill=fill_kpi, border=border_all, alignment=align_center)
-    ws_dash["D8"] = "APPIUM MOBILE"
-    ws_dash["D9"] = f"{len(appium_results)} Passed\n0 Failed"
+    ws_dash["D8"] = kpi_b_title
+    ws_dash["D9"] = f"{len(results_b)} Passed\n0 Failed"
 
     # Spacer F
     ws_dash.column_dimensions["F"].width = 3
 
-    # Backend KPI
+    # Overall Summary KPI
     ws_dash.merge_cells("G8:H8")
     ws_dash.merge_cells("G9:H10")
-    style_range(ws_dash, "G8:H8", font=font_bold, fill=fill_kpi, border=border_all, alignment=align_center)
-    style_range(ws_dash, "G9:H10", font=font_kpi_num, fill=fill_kpi, border=border_all, alignment=align_center)
-    ws_dash["G8"] = "BACKEND API"
-    ws_dash["G9"] = f"{len(backend_results)} Passed\n0 Failed"
-
-    # Spacer I
-    ws_dash.column_dimensions["I"].width = 3
-
-    # Security KPI
-    ws_dash.merge_cells("J8:K8")
-    ws_dash.merge_cells("J9:K10")
-    style_range(ws_dash, "J8:K8", font=font_bold, fill=fill_kpi, border=border_all, alignment=align_center)
-    style_range(ws_dash, "J9:K10", font=font_kpi_num, fill=fill_kpi, border=border_all, alignment=align_center)
-    ws_dash["J8"] = "SECURITY VAULT"
-    ws_dash["J9"] = f"{len(security_results)} Passed\n0 Failed"
-
-    # Spacer L
-    ws_dash.column_dimensions["L"].width = 3
-
-    # Overall Summary KPI
-    ws_dash.merge_cells("M8:N8")
-    ws_dash.merge_cells("M9:N10")
-    style_range(ws_dash, "M8:N8", font=font_bold, fill=fill_pass, border=border_all, alignment=align_center)
-    style_range(ws_dash, "M9:N10", font=Font(name="Segoe UI", size=20, bold=True, color="15803D"), fill=fill_pass, border=border_all, alignment=align_center)
-    ws_dash["M8"] = "TOTAL E2E VERDICT"
-    ws_dash["M9"] = "100.0% PASS"
+    style_range(ws_dash, "G8:H8", font=font_bold, fill=fill_pass, border=border_all, alignment=align_center)
+    style_range(ws_dash, "G9:H10", font=Font(name="Segoe UI", size=18, bold=True, color="15803D"), fill=fill_pass, border=border_all, alignment=align_center)
+    ws_dash["G8"] = verdict_title
+    ws_dash["G9"] = "100.0% PASS"
 
     # Module Breakdown Header
     ws_dash["A13"] = "Testing Module Breakdown Analysis"
@@ -157,10 +135,8 @@ def generate_excel_report(selenium_results, appium_results, backend_results, sec
 
     breakdown_headers = [
         "Module / Feature", 
-        "Selenium Web Cases", 
-        "Appium Mobile Cases", 
-        "Backend API Cases", 
-        "Security Vault Cases", 
+        f"{label_a} Cases", 
+        f"{label_b} Cases", 
         "Total Cases", 
         "Verdict"
     ]
@@ -184,54 +160,46 @@ def generate_excel_report(selenium_results, appium_results, backend_results, sec
     
     row_cursor = 15
     for mod in modules_list:
-        sel_count = sum(1 for tc in selenium_results if tc["module"] == mod)
-        app_count = sum(1 for tc in appium_results if tc["module"] == mod)
-        back_count = sum(1 for tc in backend_results if tc["module"] == mod)
-        sec_count = sum(1 for tc in security_results if tc["module"] == mod)
-        total = sel_count + app_count + back_count + sec_count
+        a_count = sum(1 for tc in results_a if tc["module"] == mod)
+        b_count = sum(1 for tc in results_b if tc["module"] == mod)
+        total = a_count + b_count
         if total == 0:
             continue
             
         ws_dash.cell(row=row_cursor, column=1, value=mod).font = font_bold
-        ws_dash.cell(row=row_cursor, column=2, value=sel_count).alignment = align_center
-        ws_dash.cell(row=row_cursor, column=3, value=app_count).alignment = align_center
-        ws_dash.cell(row=row_cursor, column=4, value=back_count).alignment = align_center
-        ws_dash.cell(row=row_cursor, column=5, value=sec_count).alignment = align_center
-        ws_dash.cell(row=row_cursor, column=6, value=total).alignment = align_center
+        ws_dash.cell(row=row_cursor, column=2, value=a_count).alignment = align_center
+        ws_dash.cell(row=row_cursor, column=3, value=b_count).alignment = align_center
+        ws_dash.cell(row=row_cursor, column=4, value=total).alignment = align_center
         
-        status_cell = ws_dash.cell(row=row_cursor, column=7, value="Passed (100%)")
+        status_cell = ws_dash.cell(row=row_cursor, column=5, value="Passed (100%)")
         status_cell.font = font_pass
         status_cell.fill = fill_pass
         status_cell.alignment = align_center
         
-        for col_idx in range(1, 8):
+        for col_idx in range(1, 6):
             ws_dash.cell(row=row_cursor, column=col_idx).border = border_all
-            if row_cursor % 2 == 0 and col_idx != 7:
+            if row_cursor % 2 == 0 and col_idx != 5:
                 ws_dash.cell(row=row_cursor, column=col_idx).fill = fill_zebra
-            elif col_idx == 7:
+            elif col_idx == 5:
                 ws_dash.cell(row=row_cursor, column=col_idx).fill = fill_pass
                 
         row_cursor += 1
 
     # Total Row
     ws_dash.cell(row=row_cursor, column=1, value="Total Checkpoints").font = Font(name="Segoe UI", size=10, bold=True, color="000000")
-    ws_dash.cell(row=row_cursor, column=2, value=len(selenium_results)).font = font_bold
+    ws_dash.cell(row=row_cursor, column=2, value=len(results_a)).font = font_bold
     ws_dash.cell(row=row_cursor, column=2).alignment = align_center
-    ws_dash.cell(row=row_cursor, column=3, value=len(appium_results)).font = font_bold
+    ws_dash.cell(row=row_cursor, column=3, value=len(results_b)).font = font_bold
     ws_dash.cell(row=row_cursor, column=3).alignment = align_center
-    ws_dash.cell(row=row_cursor, column=4, value=len(backend_results)).font = font_bold
+    ws_dash.cell(row=row_cursor, column=4, value=total_cases).font = font_bold
     ws_dash.cell(row=row_cursor, column=4).alignment = align_center
-    ws_dash.cell(row=row_cursor, column=5, value=len(security_results)).font = font_bold
-    ws_dash.cell(row=row_cursor, column=5).alignment = align_center
-    ws_dash.cell(row=row_cursor, column=6, value=total_cases).font = font_bold
-    ws_dash.cell(row=row_cursor, column=6).alignment = align_center
     
-    final_verdict = ws_dash.cell(row=row_cursor, column=7, value="All Passed")
+    final_verdict = ws_dash.cell(row=row_cursor, column=5, value="All Passed")
     final_verdict.font = Font(name="Segoe UI", size=10, bold=True, color="FFFFFF")
     final_verdict.fill = PatternFill(start_color="15803D", end_color="15803D", fill_type="solid")
     final_verdict.alignment = align_center
 
-    for col_idx in range(1, 8):
+    for col_idx in range(1, 6):
         ws_dash.cell(row=row_cursor, column=col_idx).border = border_all
 
     # Auto-adjust column widths for dashboard
@@ -269,14 +237,10 @@ def generate_excel_report(selenium_results, appium_results, backend_results, sec
         
     # Combine results
     all_results = []
-    for r in selenium_results:
-        all_results.append((r, "Selenium"))
-    for r in appium_results:
-        all_results.append((r, "Appium"))
-    for r in backend_results:
-        all_results.append((r, "Backend API"))
-    for r in security_results:
-        all_results.append((r, "Security"))
+    for r in results_a:
+        all_results.append((r, label_a))
+    for r in results_b:
+        all_results.append((r, label_b))
 
     # Write Data rows
     for row_idx, (r, framework) in enumerate(all_results, start=2):
@@ -364,18 +328,48 @@ def main():
     
     # 5. Create Excel reports
     project_root = os.path.dirname(current_dir)
-    primary_excel = os.path.join(project_root, "test_report.xlsx")
-    frontend_excel = os.path.join(project_root, "frontend_test_report.xlsx")
     
-    # Ensure reports folder exists
+    # Primary paths in root workspace
+    primary_frontend = os.path.join(project_root, "frontend_test_report.xlsx")
+    primary_backend = os.path.join(project_root, "backend_test_report.xlsx")
+    
+    # Secondary paths in reports folder
     reports_dir = os.path.join(current_dir, "reports")
     os.makedirs(reports_dir, exist_ok=True)
-    secondary_excel = os.path.join(reports_dir, "test_report.xlsx")
+    secondary_frontend = os.path.join(reports_dir, "frontend_test_report.xlsx")
+    secondary_backend = os.path.join(reports_dir, "backend_test_report.xlsx")
     
-    # Generate in all locations
-    generate_excel_report(selenium_results, appium_results, backend_results, security_results, primary_excel)
-    generate_excel_report(selenium_results, appium_results, backend_results, security_results, frontend_excel)
-    generate_excel_report(selenium_results, appium_results, backend_results, security_results, secondary_excel)
+    # Generate Frontend Reports (Selenium + Appium)
+    generate_excel_report(
+        selenium_results, appium_results, 
+        "Selenium", "Appium", 
+        "  Mind Mood AI - Frontend Automated Testing Report",
+        "SELENIUM WEB", "APPIUM MOBILE", "TOTAL FRONTEND VERDICT", 
+        primary_frontend
+    )
+    generate_excel_report(
+        selenium_results, appium_results, 
+        "Selenium", "Appium", 
+        "  Mind Mood AI - Frontend Automated Testing Report",
+        "SELENIUM WEB", "APPIUM MOBILE", "TOTAL FRONTEND VERDICT", 
+        secondary_frontend
+    )
+    
+    # Generate Backend Reports (API + Security)
+    generate_excel_report(
+        backend_results, security_results, 
+        "Backend API", "Security", 
+        "  Mind Mood AI - Backend Automated Testing Report",
+        "BACKEND API", "SECURITY VAULT", "TOTAL BACKEND VERDICT", 
+        primary_backend
+    )
+    generate_excel_report(
+        backend_results, security_results, 
+        "Backend API", "Security", 
+        "  Mind Mood AI - Backend Automated Testing Report",
+        "BACKEND API", "SECURITY VAULT", "TOTAL BACKEND VERDICT", 
+        secondary_backend
+    )
 
 if __name__ == "__main__":
     main()
