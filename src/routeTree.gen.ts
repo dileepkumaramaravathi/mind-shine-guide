@@ -14,6 +14,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedWellnessRouteImport } from './routes/_authenticated/wellness'
 import { Route as AuthenticatedMoodRouteImport } from './routes/_authenticated/mood'
 import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
 import { Route as AuthenticatedDetectRouteImport } from './routes/_authenticated/detect'
@@ -44,6 +45,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedWellnessRoute = AuthenticatedWellnessRouteImport.update({
+  id: '/wellness',
+  path: '/wellness',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMoodRoute = AuthenticatedMoodRouteImport.update({
   id: '/mood',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/detect': typeof AuthenticatedDetectRoute
   '/journal': typeof AuthenticatedJournalRoute
   '/mood': typeof AuthenticatedMoodRoute
+  '/wellness': typeof AuthenticatedWellnessRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/detect': typeof AuthenticatedDetectRoute
   '/journal': typeof AuthenticatedJournalRoute
   '/mood': typeof AuthenticatedMoodRoute
+  '/wellness': typeof AuthenticatedWellnessRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/_authenticated/detect': typeof AuthenticatedDetectRoute
   '/_authenticated/journal': typeof AuthenticatedJournalRoute
   '/_authenticated/mood': typeof AuthenticatedMoodRoute
+  '/_authenticated/wellness': typeof AuthenticatedWellnessRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/detect'
     | '/journal'
     | '/mood'
+    | '/wellness'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/detect'
     | '/journal'
     | '/mood'
+    | '/wellness'
   id:
     | '__root__'
     | '/'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/_authenticated/detect'
     | '/_authenticated/journal'
     | '/_authenticated/mood'
+    | '/_authenticated/wellness'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -198,6 +210,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/wellness': {
+      id: '/_authenticated/wellness'
+      path: '/wellness'
+      fullPath: '/wellness'
+      preLoaderRoute: typeof AuthenticatedWellnessRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/mood': {
       id: '/_authenticated/mood'
@@ -251,6 +270,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDetectRoute: typeof AuthenticatedDetectRoute
   AuthenticatedJournalRoute: typeof AuthenticatedJournalRoute
   AuthenticatedMoodRoute: typeof AuthenticatedMoodRoute
+  AuthenticatedWellnessRoute: typeof AuthenticatedWellnessRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -260,6 +280,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDetectRoute: AuthenticatedDetectRoute,
   AuthenticatedJournalRoute: AuthenticatedJournalRoute,
   AuthenticatedMoodRoute: AuthenticatedMoodRoute,
+  AuthenticatedWellnessRoute: AuthenticatedWellnessRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
