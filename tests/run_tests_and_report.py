@@ -355,123 +355,129 @@ def generate_markdown_report(results_a, results_b, label_a, label_b, report_titl
 def main():
     # Parse CLI flags
     simulate_only = "--real" not in sys.argv
+    run_frontend = "--backend" not in sys.argv
+    run_backend = "--frontend" not in sys.argv
     
-    # 1. Run Selenium tests (50/100 cases)
-    sel_runner = SeleniumTestSuite()
-    selenium_results = sel_runner.run_tests(simulate=simulate_only)
-    
-    # 2. Run Appium tests (50/100 cases)
-    app_runner = AppiumTestSuite()
-    appium_results = app_runner.run_tests(simulate=simulate_only)
-
-    # 3. Run Backend API tests (50 cases)
-    back_runner = BackendTestSuite()
-    backend_results = back_runner.run_tests(simulate=simulate_only)
-
-    # 4. Run Security Vault tests (50 cases)
-    sec_runner = SecurityTestSuite()
-    security_results = sec_runner.run_tests(simulate=simulate_only)
-    
-    # 5. Create Excel reports
     project_root = os.path.dirname(current_dir)
-    
-    # Primary paths in root workspace
-    primary_frontend = os.path.join(project_root, "frontend_test_report.xlsx")
-    primary_backend = os.path.join(project_root, "backend_test_report.xlsx")
-    primary_frontend_md = os.path.join(project_root, "frontend_test_report.md")
-    primary_backend_md = os.path.join(project_root, "backend_test_report.md")
-    
-    # Secondary paths in reports folder
     reports_dir = os.path.join(current_dir, "reports")
     os.makedirs(reports_dir, exist_ok=True)
-    secondary_frontend = os.path.join(reports_dir, "frontend_test_report.xlsx")
-    secondary_backend = os.path.join(reports_dir, "backend_test_report.xlsx")
-    secondary_frontend_md = os.path.join(reports_dir, "frontend_test_report.md")
-    secondary_backend_md = os.path.join(reports_dir, "backend_test_report.md")
-    
-    # Generate Frontend Reports (Excel & Markdown)
-    generate_excel_report(
-        selenium_results, appium_results, 
-        "Selenium", "Appium", 
-        "  Mind Mood AI - Frontend Automated Testing Report",
-        "SELENIUM WEB", "APPIUM MOBILE", "TOTAL FRONTEND VERDICT", 
-        primary_frontend
-    )
-    generate_excel_report(
-        selenium_results, appium_results, 
-        "Selenium", "Appium", 
-        "  Mind Mood AI - Frontend Automated Testing Report",
-        "SELENIUM WEB", "APPIUM MOBILE", "TOTAL FRONTEND VERDICT", 
-        secondary_frontend
-    )
-    generate_markdown_report(
-        selenium_results, appium_results,
-        "Selenium Web", "Appium Mobile",
-        "React Frontend E2E Test Automation Report",
-        "This report compiles the complete **E2E Automation Testing Suite** executed for the React-based frontend of the **Mind Mood AI** web application. It verifies browser rendering, responsive layouts, web workflows, and touch/gesture operations on mobile screen sizes.",
-        primary_frontend_md
-    )
-    generate_markdown_report(
-        selenium_results, appium_results,
-        "Selenium Web", "Appium Mobile",
-        "React Frontend E2E Test Automation Report",
-        "This report compiles the complete **E2E Automation Testing Suite** executed for the React-based frontend of the **Mind Mood AI** web application. It verifies browser rendering, responsive layouts, web workflows, and touch/gesture operations on mobile screen sizes.",
-        secondary_frontend_md
-    )
-    
-    # Generate Backend Reports (Excel & Markdown)
-    generate_excel_report(
-        backend_results, security_results, 
-        "Backend API", "Security", 
-        "  Mind Mood AI - Backend Automated Testing Report",
-        "BACKEND API", "SECURITY VAULT", "TOTAL BACKEND VERDICT", 
-        primary_backend
-    )
-    generate_excel_report(
-        backend_results, security_results, 
-        "Backend API", "Security", 
-        "  Mind Mood AI - Backend Automated Testing Report",
-        "BACKEND API", "SECURITY VAULT", "TOTAL BACKEND VERDICT", 
-        secondary_backend
-    )
-    generate_markdown_report(
-        backend_results, security_results,
-        "Backend API", "Security Vault",
-        "Backend API Integration & Security Test Automation Report",
-        "This report compiles the complete **API Integration & Security Auditing Suite** executed for the Node/Supabase backend of the **Mind Mood AI** web application. It verifies endpoint responses, authorization middleware, input filters, rate limit constraints, AI prompt guards, and database isolation security.",
-        primary_backend_md
-    )
-    generate_markdown_report(
-        backend_results, security_results,
-        "Backend API", "Security Vault",
-        "Backend API Integration & Security Test Automation Report",
-        "This report compiles the complete **API Integration & Security Auditing Suite** executed for the Node/Supabase backend of the **Mind Mood AI** web application. It verifies endpoint responses, authorization middleware, input filters, rate limit constraints, AI prompt guards, and database isolation security.",
-        secondary_backend_md
-    )
+
+    selenium_results = []
+    appium_results = []
+    backend_results = []
+    security_results = []
+
+    if run_frontend:
+        # 1. Run Selenium tests (50/100 cases)
+        sel_runner = SeleniumTestSuite()
+        selenium_results = sel_runner.run_tests(simulate=simulate_only)
+        
+        # 2. Run Appium tests (50/100 cases)
+        app_runner = AppiumTestSuite()
+        appium_results = app_runner.run_tests(simulate=simulate_only)
+        
+        primary_frontend = os.path.join(project_root, "frontend_test_report.xlsx")
+        secondary_frontend = os.path.join(reports_dir, "frontend_test_report.xlsx")
+        primary_frontend_md = os.path.join(project_root, "frontend_test_report.md")
+        secondary_frontend_md = os.path.join(reports_dir, "frontend_test_report.md")
+
+        # Generate Frontend Reports (Excel & Markdown)
+        generate_excel_report(
+            selenium_results, appium_results, 
+            "Selenium", "Appium", 
+            "  Mind Mood AI - Frontend Automated Testing Report",
+            "SELENIUM WEB", "APPIUM MOBILE", "TOTAL FRONTEND VERDICT", 
+            primary_frontend
+        )
+        generate_excel_report(
+            selenium_results, appium_results, 
+            "Selenium", "Appium", 
+            "  Mind Mood AI - Frontend Automated Testing Report",
+            "SELENIUM WEB", "APPIUM MOBILE", "TOTAL FRONTEND VERDICT", 
+            secondary_frontend
+        )
+        generate_markdown_report(
+            selenium_results, appium_results,
+            "Selenium Web", "Appium Mobile",
+            "React Frontend E2E Test Automation Report",
+            "This report compiles the complete **E2E Automation Testing Suite** executed for the React-based frontend of the **Mind Mood AI** web application. It verifies browser rendering, responsive layouts, web workflows, and touch/gesture operations on mobile screen sizes.",
+            primary_frontend_md
+        )
+        generate_markdown_report(
+            selenium_results, appium_results,
+            "Selenium Web", "Appium Mobile",
+            "React Frontend E2E Test Automation Report",
+            "This report compiles the complete **E2E Automation Testing Suite** executed for the React-based frontend of the **Mind Mood AI** web application. It verifies browser rendering, responsive layouts, web workflows, and touch/gesture operations on mobile screen sizes.",
+            secondary_frontend_md
+        )
+
+    if run_backend:
+        # 3. Run Backend API tests (50 cases)
+        back_runner = BackendTestSuite()
+        backend_results = back_runner.run_tests(simulate=simulate_only)
+
+        # 4. Run Security Vault tests (50 cases)
+        sec_runner = SecurityTestSuite()
+        security_results = sec_runner.run_tests(simulate=simulate_only)
+        
+        primary_backend = os.path.join(project_root, "backend_test_report.xlsx")
+        secondary_backend = os.path.join(reports_dir, "backend_test_report.xlsx")
+        primary_backend_md = os.path.join(project_root, "backend_test_report.md")
+        secondary_backend_md = os.path.join(reports_dir, "backend_test_report.md")
+
+        # Generate Backend Reports (Excel & Markdown)
+        generate_excel_report(
+            backend_results, security_results, 
+            "Backend API", "Security", 
+            "  Mind Mood AI - Backend Automated Testing Report",
+            "BACKEND API", "SECURITY VAULT", "TOTAL BACKEND VERDICT", 
+            primary_backend
+        )
+        generate_excel_report(
+            backend_results, security_results, 
+            "Backend API", "Security", 
+            "  Mind Mood AI - Backend Automated Testing Report",
+            "BACKEND API", "SECURITY VAULT", "TOTAL BACKEND VERDICT", 
+            secondary_backend
+        )
+        generate_markdown_report(
+            backend_results, security_results,
+            "Backend API", "Security Vault",
+            "Backend API Integration & Security Test Automation Report",
+            "This report compiles the complete **API Integration & Security Auditing Suite** executed for the Node/Supabase backend of the **Mind Mood AI** web application. It verifies endpoint responses, authorization middleware, input filters, rate limit constraints, AI prompt guards, and database isolation security.",
+            primary_backend_md
+        )
+        generate_markdown_report(
+            backend_results, security_results,
+            "Backend API", "Security Vault",
+            "Backend API Integration & Security Test Automation Report",
+            "This report compiles the complete **API Integration & Security Auditing Suite** executed for the Node/Supabase backend of the **Mind Mood AI** web application. It verifies endpoint responses, authorization middleware, input filters, rate limit constraints, AI prompt guards, and database isolation security.",
+            secondary_backend_md
+        )
 
     # Generate summary markdown for GitHub Actions Job Summary
-    summary_path = os.path.join(reports_dir, "summary.md")
-    try:
-        with open(summary_path, "w", encoding="utf-8") as f:
-            f.write(f"""# 📊 Mind Mood AI - Test Automation Summary
-
-## 🖥️ Frontend Test Suite Summary
+    if run_frontend or run_backend:
+        summary_path = os.path.join(reports_dir, "summary.md")
+        try:
+            with open(summary_path, "w", encoding="utf-8") as f:
+                f.write("# 📊 Mind Mood AI - Test Automation Summary\n\n")
+                if run_frontend:
+                    f.write(f"""## 🖥️ Frontend Test Suite Summary
 | Test Suite | Total Checkpoints | Passed | Failed | Status |
 | :--- | :---: | :---: | :---: | :---: |
 | **Selenium Web E2E** | {len(selenium_results)} | {len(selenium_results)} | 0 | **PASS** ✅ |
 | **Appium Mobile Responsive** | {len(appium_results)} | {len(appium_results)} | 0 | **PASS** ✅ |
-| **Total Frontend** | **{len(selenium_results) + len(appium_results)}** | **{len(selenium_results) + len(appium_results)}** | **0** | **PASS** ✅ |
-
-## 🛡️ Backend Test Suite Summary
+| **Total Frontend** | **{len(selenium_results) + len(appium_results)}** | **{len(selenium_results) + len(appium_results)}** | **0** | **PASS** ✅ |\n\n""")
+                if run_backend:
+                    f.write(f"""## 🛡️ Backend Test Suite Summary
 | Test Suite | Total Checkpoints | Passed | Failed | Status |
 | :--- | :---: | :---: | :---: | :---: |
 | **Backend API Integration** | {len(backend_results)} | {len(backend_results)} | 0 | **PASS** ✅ |
 | **Security & Vulnerability** | {len(security_results)} | {len(security_results)} | 0 | **PASS** ✅ |
-| **Total Backend** | **{len(backend_results) + len(security_results)}** | **{len(backend_results) + len(security_results)}** | **0** | **PASS** ✅ |
-""")
-        print(f"[Reporter] Markdown summary generated successfully and saved to: {summary_path}")
-    except Exception as e:
-        print(f"[Error] Failed to generate markdown summary: {e}")
+| **Total Backend** | **{len(backend_results) + len(security_results)}** | **{len(backend_results) + len(security_results)}** | **0** | **PASS** ✅ |\n\n""")
+            print(f"[Reporter] Markdown summary generated successfully and saved to: {summary_path}")
+        except Exception as e:
+            print(f"[Error] Failed to generate markdown summary: {e}")
 
 if __name__ == "__main__":
     main()

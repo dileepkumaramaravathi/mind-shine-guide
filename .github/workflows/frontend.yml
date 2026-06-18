@@ -1,0 +1,54 @@
+name: Frontend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install Node dependencies
+      run: npm install
+
+    - name: Build frontend
+      run: npm run build
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r tests/requirements.txt
+
+    - name: Run Frontend E2E Tests
+      run: |
+        python tests/run_tests_and_report.py --frontend
+        if [ -f tests/reports/summary.md ]; then
+          cat tests/reports/summary.md >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Archive Frontend Test Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-test-report
+        path: |
+          frontend_test_report.xlsx
+          frontend_test_report.md
+          tests/reports/frontend_test_report.xlsx
+          tests/reports/frontend_test_report.md
+        if-no-files-found: warn
