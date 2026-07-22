@@ -5,7 +5,6 @@
 
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from './src/db/dbManager';
 import { MoodType } from './src/types';
@@ -883,6 +882,7 @@ app.get('/api/backend/info', authMiddleware, (req: AuthenticatedRequest, res: Re
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -897,9 +897,11 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Express full-stack backend running on http://localhost:${PORT}`);
-  });
+  if (process.env.VERCEL !== '1') {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Express full-stack backend running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 startServer();
