@@ -1,0 +1,118 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with wellness statistics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "moodStreak": { "type": "number" },
+        "lastActiveDate": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "moodStreak", "createdAt"]
+    },
+    "Mood": {
+      "title": "Mood",
+      "description": "Logged mood instance",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "moodType": { "type": "string" },
+        "intensity": { "type": "number" },
+        "note": { "type": "string" },
+        "date": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "moodType", "intensity", "note", "date", "createdAt"]
+    },
+    "JournalEntry": {
+      "title": "JournalEntry",
+      "description": "Self-reflection log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "text": { "type": "string" },
+        "moodTag": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "text", "moodTag", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "AI Support messaging item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "sender": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "userId", "sender", "text", "timestamp"]
+    },
+    "CommunityItem": {
+      "title": "CommunityItem",
+      "description": "Shared positive message board card",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "text": { "type": "string" },
+        "bgGradient": { "type": "string" },
+        "likes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "authorName", "text", "bgGradient", "likes", "createdAt"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "User specific wellness system notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["system", "milestone", "support", "report"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "message", "type", "read", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Master user directories"
+    },
+    "/moods/{moodId}": {
+      "schema": "Mood",
+      "description": "Mood logging history entries"
+    },
+    "/journals/{journalId}": {
+      "schema": "JournalEntry",
+      "description": "Private mental reflection notes"
+    },
+    "/chats/{chatMessageId}": {
+      "schema": "ChatMessage",
+      "description": "Full conversation history logs with Mind Mood AI"
+    },
+    "/community/{communityId}": {
+      "schema": "CommunityItem",
+      "description": "Public anonymous inspiration feed objects"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "NotificationItem",
+      "description": "Personal warning and accomplishment notifications"
+    }
+  }
+}

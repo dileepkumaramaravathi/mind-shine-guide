@@ -1,0 +1,6 @@
+{
+  "name": "Mind Mood AI",
+  "description": "An AI-powered mental wellness companion to track emotions, keep daily journals, chat with a supportive mental wellness assistant, and visualize emotional trends.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
