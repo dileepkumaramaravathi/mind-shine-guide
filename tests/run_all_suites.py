@@ -48,10 +48,14 @@ if __name__ == "__main__":
         t0 = time.time()
         try:
             mod = __import__(module_name)
-            # Each suite has a function build_*_tests()
-            build_fn_name = [attr for attr in dir(mod) if attr.startswith("build_")][0]
-            build_fn = getattr(mod, build_fn_name)
-            results = build_fn()
+            if hasattr(mod, "build"):
+                results = mod.build()
+            elif hasattr(mod, "CASES"):
+                results = mod.CASES
+            else:
+                build_fn_name = [attr for attr in dir(mod) if attr.startswith("build")][0]
+                build_fn = getattr(mod, build_fn_name)
+                results = build_fn()
             passed = sum(1 for r in results if r.get("status") == "Pass")
             total = len(results)
             elapsed = time.time() - t0
