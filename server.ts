@@ -360,6 +360,15 @@ User text: "${text}"`;
         'Wrap yourself in a warm blanket or sit comfortably.'
       ];
       quote = 'Do not anticipate trouble, or worry about what may never happen. Keep in the sunlight. — Benjamin Franklin';
+    } else if (lowerText.includes('stress') || lowerText.includes('overwhelm') || lowerText.includes('pressure') || lowerText.includes('tension')) {
+      emotion = 'Stress';
+      summary = 'It seems you are carrying a high level of stress or tension today. When demands exceed our immediate capacity, taking small steps back is key to restoration.';
+      suggestions = [
+        'Do a 2-minute progressive muscle relaxation (tense and release muscle groups).',
+        'Write down a quick brain-dump list to declutter your active thoughts.',
+        'Inhale deeply for 4 seconds, hold for 4, and release with a sigh.'
+      ];
+      quote = 'Rule number one is, don’t sweat the small stuff. Rule number two is, it’s all small stuff. — Robert Eliot';
     } else if (lowerText.includes('happy') || lowerText.includes('great') || lowerText.includes('good') || lowerText.includes('joy') || lowerText.includes('excited') || lowerText.includes('love') || lowerText.includes('glad')) {
       emotion = 'Positive';
       summary = 'It is beautiful to see positivity and joy in your thoughts! Cultivating gratitude and celebrating small wins strengthens our mental resilience.';
@@ -504,6 +513,13 @@ Output your reply in structured JSON format.`,
       copingTips = [
         'Ground yourself by feeling the floor solid under your feet.',
         'Breathe slowly: extend your exhale longer than your inhale.'
+      ];
+    } else if (lowerFeeling.includes('stress') || lowerFeeling.includes('overwhelm') || lowerFeeling.includes('pressure') || lowerFeeling.includes('tension')) {
+      detectedEmotion = 'Stressed';
+      fallbackText = "I can hear how much pressure you're under. Stress makes our world feel incredibly heavy, but you don't have to carry it all right now. Let's take a slow breath. What is the main thing demanding your energy today?";
+      copingTips = [
+        'Write down a quick brain-dump to offload your mental checklist.',
+        'Sip some cool water and release the tension in your jaw and shoulders.'
       ];
     } else if (lowerFeeling.includes('happy') || lowerFeeling.includes('great') || lowerFeeling.includes('good') || lowerFeeling.includes('joy') || lowerFeeling.includes('excited') || lowerFeeling.includes('love') || lowerFeeling.includes('glad')) {
       detectedEmotion = 'Happy';
