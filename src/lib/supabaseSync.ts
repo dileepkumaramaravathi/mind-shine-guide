@@ -80,20 +80,31 @@ export async function syncJournal(userId: string, text: string, moodTag: string,
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const dbId = uuidRegex.test(cleanUserId) ? cleanUserId : '00000000-0000-0000-0000-000000000000';
 
-    const { error } = await supabase
-      .from('journals')
-      .insert({
-        user_id: dbId,
-        title: moodTag || 'Daily Journal',
-        content: text,
-        sentiment: aiAnalysis?.emotion || null,
-        summary: aiAnalysis?.summary || null,
-        created_at: new Date().toISOString()
-      });
-    if (error) {
-      console.warn('[Supabase Sync Journal Warning]', error.message);
+    const journalPayload = {
+      user_id: dbId,
+      title: moodTag || 'Daily Journal',
+      content: text,
+      sentiment: aiAnalysis?.emotion || null,
+      summary: aiAnalysis?.summary || null,
+      created_at: new Date().toISOString()
+    };
+
+    const { error: errorEntries } = await supabase
+      .from('journal_entries')
+      .insert(journalPayload);
+
+    if (errorEntries) {
+      // Fallback to 'journals' table just in case they have a legacy schema
+      const { error: errorJournals } = await supabase
+        .from('journals')
+        .insert(journalPayload);
+      if (errorJournals) {
+        console.warn('[Supabase Sync Journal Warning]', errorJournals.message);
+      } else {
+        console.log('[Supabase Sync Journal] Success (journals fallback table)!');
+      }
     } else {
-      console.log('[Supabase Sync Journal] Success!');
+      console.log('[Supabase Sync Journal] Success (journal_entries table)!');
     }
   } catch (err: any) {
     console.warn('[Supabase Sync Journal Error]', err.message);
