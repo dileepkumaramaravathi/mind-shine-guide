@@ -5,6 +5,7 @@
 
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
+import crypto from 'crypto';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from './src/db/dbManager.js';
 import { MoodType } from './src/types.js';
