@@ -6,8 +6,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { GoogleGenAI, Type } from '@google/genai';
-import { db } from './src/db/dbManager';
-import { MoodType } from './src/types';
+import { db } from './src/db/dbManager.js';
+import { MoodType } from './src/types.js';
 
 // API Key setup from Secrets environment variables
 const apiKey = process.env.GEMINI_API_KEY;
