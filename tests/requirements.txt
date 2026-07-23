@@ -1,3 +1,5 @@
 selenium>=4.21.0
 Appium-Python-Client>=4.0.0
 openpyxl>=3.1.0
+requests>=2.31.0
+locust>=2.20.0
