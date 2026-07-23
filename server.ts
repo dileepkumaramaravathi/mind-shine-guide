@@ -485,55 +485,114 @@ Output your reply in structured JSON format.`,
     });
   } catch (err: any) {
     console.error('Error in AI Chat API:', err);
-    const lowerFeeling = (feeling || '').toLowerCase();
+    const lowerFeeling = (feeling || '').toLowerCase().trim();
     let detectedEmotion = 'Neutral';
-    let fallbackText = "I am here for you. Recording how we feel is a brave step towards understanding ourselves. Take a deep breath: draw it in slowly, hold for four seconds, and let it go. Would you like to write about this in your daily journal?";
-    let copingTips = [
-      'Breathe mindfully (inhale 4s, hold 4s, exhale 4s).',
-      'Write down a simple journal entry of what is causing this.'
-    ];
+    let fallbackText = '';
+    let copingTips: string[] = [];
 
-    if (lowerFeeling.includes('sad') || lowerFeeling.includes('down') || lowerFeeling.includes('cry') || lowerFeeling.includes('hurt') || lowerFeeling.includes('depress') || lowerFeeling.includes('lonely') || lowerFeeling.includes('alone')) {
+    // 1. Keyword Emotion Detection
+    if (lowerFeeling.includes('sad') || lowerFeeling.includes('down') || lowerFeeling.includes('cry') || lowerFeeling.includes('hurt') || lowerFeeling.includes('depress') || lowerFeeling.includes('lonely') || lowerFeeling.includes('alone') || lowerFeeling.includes('grief') || lowerFeeling.includes('blue') || lowerFeeling.includes('unhappy')) {
       detectedEmotion = 'Sad';
-      fallbackText = "I hear you, and I am so sorry you are feeling down. It is completely okay to feel sad or alone right now. Be gentle with yourself. Can you tell me more about what is making you feel this way?";
+    } else if (lowerFeeling.includes('angry') || lowerFeeling.includes('mad') || lowerFeeling.includes('hate') || lowerFeeling.includes('furious') || lowerFeeling.includes('annoy') || lowerFeeling.includes('frustrate') || lowerFeeling.includes('irritate')) {
+      detectedEmotion = 'Angry';
+    } else if (lowerFeeling.includes('anxious') || lowerFeeling.includes('scared') || lowerFeeling.includes('panic') || lowerFeeling.includes('worry') || lowerFeeling.includes('fear') || lowerFeeling.includes('nervous') || lowerFeeling.includes('dread')) {
+      detectedEmotion = 'Anxious';
+    } else if (lowerFeeling.includes('stress') || lowerFeeling.includes('overwhelm') || lowerFeeling.includes('pressure') || lowerFeeling.includes('tension')) {
+      detectedEmotion = 'Stressed';
+    } else if (lowerFeeling.includes('happy') || lowerFeeling.includes('great') || lowerFeeling.includes('good') || lowerFeeling.includes('joy') || lowerFeeling.includes('excited') || lowerFeeling.includes('love') || lowerFeeling.includes('glad') || lowerFeeling.includes('peaceful') || lowerFeeling.includes('calm')) {
+      detectedEmotion = 'Happy';
+    } else if (lowerFeeling.includes('tired') || lowerFeeling.includes('exhaust') || lowerFeeling.includes('sleepy') || lowerFeeling.includes('drain') || lowerFeeling.includes('fatigue') || lowerFeeling.includes('weary') || lowerFeeling.includes('burnout')) {
+      detectedEmotion = 'Tired';
+    }
+
+    // 2. Noun Context Extraction
+    let contextTopic = '';
+    if (lowerFeeling.includes('work') || lowerFeeling.includes('job') || lowerFeeling.includes('boss') || lowerFeeling.includes('office') || lowerFeeling.includes('career')) {
+      contextTopic = 'work';
+    } else if (lowerFeeling.includes('exam') || lowerFeeling.includes('study') || lowerFeeling.includes('school') || lowerFeeling.includes('college') || lowerFeeling.includes('test') || lowerFeeling.includes('grade')) {
+      contextTopic = 'studies';
+    } else if (lowerFeeling.includes('family') || lowerFeeling.includes('mother') || lowerFeeling.includes('father') || lowerFeeling.includes('parent') || lowerFeeling.includes('brother') || lowerFeeling.includes('sister') || lowerFeeling.includes('friend') || lowerFeeling.includes('relationship')) {
+      contextTopic = 'relationships';
+    } else if (lowerFeeling.includes('money') || lowerFeeling.includes('finance') || lowerFeeling.includes('bills') || lowerFeeling.includes('pay')) {
+      contextTopic = 'finances';
+    } else if (lowerFeeling.includes('health') || lowerFeeling.includes('body') || lowerFeeling.includes('sick') || lowerFeeling.includes('pain') || lowerFeeling.includes('sleep')) {
+      contextTopic = 'health';
+    }
+
+    // 3. Dynamic Response Building based on Emotion & Context
+    if (detectedEmotion === 'Sad') {
+      if (contextTopic === 'relationships') {
+        fallbackText = "I'm so sorry relationships are causing you sadness today. Connection is beautiful but can bring deep hurts. Be gentle with your heart. Can you share what occurred?";
+      } else if (contextTopic === 'work') {
+        fallbackText = "I hear you, and I'm sorry that work is making you feel down. It is hard to stay motivated when things feel heavy or unappreciated. Please take a quiet moment for yourself.";
+      } else {
+        fallbackText = "I hear you, and I am so sorry you are feeling down or lonely. It is completely okay to feel sad right now. Your feelings are valid. Can you tell me more about what is making you feel this way?";
+      }
       copingTips = [
         'Allow yourself to feel and cry if needed; it releases emotional stress.',
         'Identify one comfort source (a warm drink, a soft blanket, or a trusted friend).'
       ];
-    } else if (lowerFeeling.includes('angry') || lowerFeeling.includes('mad') || lowerFeeling.includes('hate') || lowerFeeling.includes('furious') || lowerFeeling.includes('annoy')) {
-      detectedEmotion = 'Angry';
-      fallbackText = "It sounds like you're carrying a lot of frustration or anger right now. Your anger is valid, but let's release the tension in your body. How can I help you unpack this anger safely?";
+    } else if (detectedEmotion === 'Angry') {
+      if (contextTopic === 'work') {
+        fallbackText = "Work frustration can really make us boil. It sounds like you are dealing with unfair demands or difficult people. Let's take a step back before responding. How can I help you clear your head?";
+      } else {
+        fallbackText = "It sounds like you're carrying a lot of frustration or anger right now. Your anger is valid, but let's release the tension in your body. How can I help you unpack this safely?";
+      }
       copingTips = [
         'Release physical tension by doing 10 quick shoulder rolls.',
         'Do a brain dump: type out all your anger here, and we can clear it afterwards.'
       ];
-    } else if (lowerFeeling.includes('anxious') || lowerFeeling.includes('scared') || lowerFeeling.includes('panic') || lowerFeeling.includes('worry') || lowerFeeling.includes('fear') || lowerFeeling.includes('nervous')) {
-      detectedEmotion = 'Anxious';
-      fallbackText = "I can feel the anxiety in your words. When thoughts spin fast, remember you are here, safe in this room. Let's do a small grounding exercise together: what is one physical thing you can touch right now?";
+    } else if (detectedEmotion === 'Anxious') {
+      if (contextTopic === 'studies') {
+        fallbackText = "Academic pressure and exams can make our thoughts spin so fast. Remember that one test does not define your future. Let's ground ourselves: take a slow breath, hold, and release.";
+      } else {
+        fallbackText = "I can feel the anxiety in your words. When thoughts spin fast, remember you are here, safe in this room. Let's do a small grounding exercise together: what is one physical thing you can touch right now?";
+      }
       copingTips = [
         'Ground yourself by feeling the floor solid under your feet.',
         'Breathe slowly: extend your exhale longer than your inhale.'
       ];
-    } else if (lowerFeeling.includes('stress') || lowerFeeling.includes('overwhelm') || lowerFeeling.includes('pressure') || lowerFeeling.includes('tension')) {
-      detectedEmotion = 'Stressed';
-      fallbackText = "I can hear how much pressure you're under. Stress makes our world feel incredibly heavy, but you don't have to carry it all right now. Let's take a slow breath. What is the main thing demanding your energy today?";
+    } else if (detectedEmotion === 'Stressed') {
+      if (contextTopic === 'work') {
+        fallbackText = "Work pressure can feel extremely overwhelming. When everything feels urgent, nothing is. Let's pick just one small task to focus on, and let the rest wait. Take a slow, deep breath.";
+      } else if (contextTopic === 'studies') {
+        fallbackText = "Study stress and deadlines can make the chest feel so tight. You are doing your best, and that is enough. Let's take a 5-minute offline break. What is one thing you can step away from right now?";
+      } else {
+        fallbackText = "I can hear how much pressure you're under. Stress makes our world feel incredibly heavy, but you don't have to carry it all right now. Let's take a slow breath. What is the main thing demanding your energy today?";
+      }
       copingTips = [
         'Write down a quick brain-dump to offload your mental checklist.',
         'Sip some cool water and release the tension in your jaw and shoulders.'
       ];
-    } else if (lowerFeeling.includes('happy') || lowerFeeling.includes('great') || lowerFeeling.includes('good') || lowerFeeling.includes('joy') || lowerFeeling.includes('excited') || lowerFeeling.includes('love') || lowerFeeling.includes('glad')) {
-      detectedEmotion = 'Happy';
+    } else if (detectedEmotion === 'Happy') {
       fallbackText = "That's wonderful! I'm so glad to hear you are feeling good. Reflecting on positive moments helps double the joy. What made things go so well today?";
       copingTips = [
         'Celebrate this moment: note what or who made you smile.',
         'Express gratitude: share a kind word with someone who contributed to your happy day.'
       ];
-    } else if (lowerFeeling.includes('tired') || lowerFeeling.includes('exhaust') || lowerFeeling.includes('sleepy') || lowerFeeling.includes('drain') || lowerFeeling.includes('fatigue')) {
-      detectedEmotion = 'Tired';
+    } else if (detectedEmotion === 'Tired') {
       fallbackText = "You sound really exhausted. It is so important to acknowledge when our batteries are low. Please give yourself permission to step away and rest. What is one thing you can put on hold to rest?";
       copingTips = [
         'Do a 5-minute passive rest: close your eyes and focus on the quiet.',
         'Drink a warm glass of water or tea and turn down screen brightness.'
+      ];
+    } else {
+      // Rotate neutral responses based on message length or index to feel dynamic
+      const hash = lowerFeeling.length % 5;
+      if (hash === 0) {
+        fallbackText = "Thank you for sharing that with me. Acknowledging your current state is a beautiful form of self-awareness. What do you feel is the main thing drawing your focus right now?";
+      } else if (hash === 1) {
+        fallbackText = "I am listening. When thoughts feel clustered or hard to navigate, taking a gentle step back helps restore clarity. How does your body feel as you reflect on this?";
+      } else if (hash === 2) {
+        fallbackText = "I appreciate you letting me in. It takes courage to open up. Let's take a slow breath in... and let it out. What is one tiny thing you can do for yourself today?";
+      } else if (hash === 3) {
+        fallbackText = "That sounds like a lot to process. Be gentle with your heart and mind right now. We don't have to solve everything in this single moment. Tell me more when you're ready.";
+      } else {
+        fallbackText = "I hear you completely. Your emotional safety and peace are paramount. Let's explore this together—what is one physical grounding comfort you can reach for?";
+      }
+      copingTips = [
+        'Practice deep mindful breathing for 2 minutes.',
+        'Drink a warm glass of water and rest your eyes.'
       ];
     }
 
