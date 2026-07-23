@@ -4,6 +4,7 @@
  */
 
 import { User, Mood, JournalEntry, ChatMessage, CommunityItem, NotificationItem, MoodType } from '../types';
+import { syncRegister, syncMood, syncJournal } from './supabaseSync';
 
 function getUUID(): string {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
@@ -149,6 +150,9 @@ class LocalDatabase {
 
     this.addNotification(userId, 'Welcome to Mind Mood AI 💜', 'Your private space is established. Inhale calm.', 'system');
 
+    // Sync to Supabase
+    syncRegister(userId, name, normalizedEmail);
+
     return { token: userId, user: { id: userId, name, email: normalizedEmail, moodStreak: 0 } };
   }
 
@@ -208,6 +212,10 @@ class LocalDatabase {
     }
 
     this.saveDb(db);
+
+    // Sync to Supabase
+    syncMood(userId, moodType, intensity, note);
+
     return { mood: newMood, user: { id: user.id, name: user.name, email: user.email, moodStreak: user.moodStreak } };
   }
 
@@ -234,6 +242,10 @@ class LocalDatabase {
     };
     db.journals.unshift(newJournal);
     this.saveDb(db);
+
+    // Sync to Supabase
+    syncJournal(userId, text, moodTag, aiAnalysis);
+
     return newJournal;
   }
 

@@ -20,6 +20,7 @@ import Community from './components/Community';
 import Notifications from './components/Notifications';
 import WellnessScoreView from './components/WellnessScoreView';
 import { Mood, MoodType, User } from './types';
+import { isSupabaseConfigured } from './lib/supabaseSync';
 
 type ActiveView = 'landing' | 'login' | 'register' | 'dashboard' | 'chat' | 'journal' | 'analytics' | 'profile' | 'meditation' | 'community' | 'notifications' | 'wellness';
 
@@ -364,9 +365,21 @@ export default function App() {
           </div>
           
           {/* Calendar or status indicators */}
-          <div className="flex items-center gap-2 bg-white/70 backdrop-blur-xs border border-slate-100/80 px-3.5 py-2 rounded-xl text-xs font-sans font-semibold text-slate-500" id="current-date">
-            <span className="w-2.5 h-2.5 bg-[#22c55e] rounded-full animate-pulse"></span>
-            <span>{new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+          <div className="flex items-center gap-3" id="current-status-container">
+            {/* Supabase Status Indicator */}
+            <div className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-sans font-bold border transition ${
+              isSupabaseConfigured 
+                ? 'bg-[#d1fae5]/60 border-[#10b981]/25 text-[#065f46]' 
+                : 'bg-slate-100/80 border-slate-200 text-slate-500'
+            }`} id="supabase-status-badge">
+              <span className={`w-2 h-2 rounded-full ${isSupabaseConfigured ? 'bg-[#10b981] animate-pulse' : 'bg-slate-400'}`}></span>
+              <span>{isSupabaseConfigured ? 'Supabase: Connected' : 'Supabase: Offline (Local DB)'}</span>
+            </div>
+
+            <div className="flex items-center gap-2 bg-white/70 backdrop-blur-xs border border-slate-100/80 px-3.5 py-2 rounded-xl text-xs font-sans font-semibold text-slate-500" id="current-date">
+              <span className="w-2.5 h-2.5 bg-[#22c55e] rounded-full animate-pulse"></span>
+              <span>{new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+            </div>
           </div>
         </div>
 
