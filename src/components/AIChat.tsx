@@ -132,9 +132,9 @@ export default function AIChat({ token }: AIChatProps) {
   ];
 
   return (
-    <div className="grid lg:grid-cols-12 gap-8 h-[calc(100vh-12rem)] align-stretch" id="chat-tab">
+    <div className="grid lg:grid-cols-12 gap-6 h-[calc(100vh-10rem)] md:h-[calc(100vh-12rem)] align-stretch" id="chat-tab">
       
-      {/* Scrollable Conversation viewport (7 cols) */}
+      {/* Scrollable Conversation viewport (8 cols on desktop, full 12 cols on mobile) */}
       <div className="lg:col-span-8 flex flex-col bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-xs relative" id="chat-viewport-panel">
         
         {/* Chat Tab Header */}
@@ -147,7 +147,14 @@ export default function AIChat({ token }: AIChatProps) {
               <h2 className="font-sans font-bold text-slate-800 text-sm flex items-center gap-1.5">
                 Mind Mood AI Support Assistant
               </h2>
-              <span className="text-[10px] font-sans text-teal-600 font-bold block uppercase tracking-wider">● Online & Private</span>
+              <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] font-sans text-teal-600 font-bold uppercase tracking-wider">● Online & Private</span>
+                {detectedEmotion && (
+                  <span className="text-[9px] font-sans bg-violet-100 text-violet-700 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Mood: {detectedEmotion}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           
@@ -181,7 +188,7 @@ export default function AIChat({ token }: AIChatProps) {
         {/* Message Log Canvas */}
         <div 
           ref={containerRef}
-          className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/10"
+          className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 bg-slate-50/10"
           id="conversation-container"
         >
           {showScanner ? (
@@ -296,7 +303,7 @@ export default function AIChat({ token }: AIChatProps) {
       </div>
 
       {/* Dynamic Sentiment Analyzer summary sidebar (4 cols) */}
-      <div className="lg:col-span-4 flex flex-col gap-6" id="chat-sidebar-panel">
+      <div className="hidden lg:flex lg:col-span-4 flex-col gap-6" id="chat-sidebar-panel">
         <div className="p-6 bg-gradient-to-br from-[#1e1b4b] to-[#0f172a] text-white rounded-3xl relative overflow-hidden" id="analytics-short-card">
           <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/20 rounded-full blur-2xl"></div>
           <div className="relative">
