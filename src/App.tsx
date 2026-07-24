@@ -344,9 +344,9 @@ export default function App() {
       </AnimatePresence>
 
       {/* 3. Main Workspace viewport */}
-      <main className="flex-1 p-6 md:p-8 overflow-y-auto" id="applet-view-port">
+      <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto" id="applet-view-port">
         {/* Header bar stating current local streak status on top of workspace */}
-        <div className="pb-6 mb-6 border-b border-slate-250 flex flex-wrap items-center justify-between gap-4" id="view-header">
+        <div className="pb-4 mb-4 sm:pb-6 sm:mb-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4" id="view-header">
           <div>
             <span className="text-[10px] font-mono font-bold text-violet-600 block uppercase tracking-wider">
               {view === 'dashboard' ? 'Daily check-in' : `Mind Mood / ${view}`}
