@@ -2,11 +2,20 @@
 <img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
 </div>
 
-# Run and deploy your AI Studio app
+# Mind Mood AI 🌿
 
-This contains everything you need to run your app locally.
+> A beautiful, full-stack mental companion app powered by Gemini AI and connected in real-time to Supabase database.
 
-View your app in AI Studio: https://ai.studio/apps/143e1e4e-7e1f-4884-be14-b82b1d216443
+---
+
+### 📱 Download Mobile App
+You can download and install the Android app directly on your phone:
+
+[![App Download](https://img.shields.io/badge/Download-Android%20APK-green?style=for-the-badge&logo=android&logoColor=white)](https://github.com/dileepkumaramaravathi/mind-shine-guide/raw/main/MindMoodAI.apk)
+
+*Click the badge above on your mobile phone to download the installer directly!*
+
+---
 
 ## Run Locally
 
