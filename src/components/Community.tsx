@@ -148,9 +148,22 @@ export default function Community({ token }: CommunityProps) {
           );
         }
       }
-      // If not ok, the optimistic update stays - that's fine
     } catch (e) {
       console.warn('Like request failed (optimistic update kept):', e);
+    }
+  };
+
+  const handleDeletePost = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this affirmation card?')) return;
+    setPosts(prev => prev.filter(p => p.id !== id));
+    try {
+      await fetch(`/api/community/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      showSuccess('🗑️ Card removed from Plaza.');
+    } catch (e) {
+      console.warn('Delete request failed:', e);
     }
   };
 
@@ -419,13 +432,23 @@ export default function Community({ token }: CommunityProps) {
                             <span className="block text-[9px] text-white/60 font-mono">{formatTime(post.createdAt)}</span>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleReadAloud(post.text)}
-                          title="Read aloud"
-                          className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg transition cursor-pointer"
-                        >
-                          <Volume2 className="w-3.5 h-3.5 text-white" />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleReadAloud(post.text)}
+                            title="Read aloud"
+                            className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg transition cursor-pointer"
+                          >
+                            <Volume2 className="w-3.5 h-3.5 text-white" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePost(post.id)}
+                            title="Delete card"
+                            className="p-1.5 bg-white/15 hover:bg-rose-500/50 rounded-lg transition cursor-pointer"
+                            id={`delete-post-${post.id}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-white/90" />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Post text */}

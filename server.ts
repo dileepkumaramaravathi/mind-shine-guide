@@ -1097,9 +1097,20 @@ app.post('/api/community/add', authMiddleware, async (req: AuthenticatedRequest,
 app.delete('/api/community/:id', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
   const postId = req.params.id;
   try {
-    // For now store deletedIds in memory; optionally add to dbManager
-    res.json({ success: true, message: 'Post removed.' });
+    db.deleteCommunityPost(req.userId!, postId);
+    
+    // Non-blocking async deletion from Supabase
+    setImmediate(async () => {
+      try {
+        await supabase.from('community_posts').delete().eq('id', postId);
+      } catch (sErr) {
+        console.warn('Supabase delete post skipped:', sErr);
+      }
+    });
+
+    res.json({ success: true, message: 'Post permanently removed.' });
   } catch (err) {
+    console.error('Delete post error:', err);
     res.status(500).json({ error: 'Failed to delete post.' });
   }
 });

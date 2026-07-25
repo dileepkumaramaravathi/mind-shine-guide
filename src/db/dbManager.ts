@@ -383,6 +383,18 @@ class DBManager {
     return post;
   }
 
+  public deleteCommunityPost(userId: string, postId: string): boolean {
+    if (!this.data.community) return false;
+    const initialLen = this.data.community.length;
+    // Allow author of post or any user to delete their own post
+    this.data.community = this.data.community.filter((p) => !(p.id === postId && (p.userId === userId || p.userId === 'anonymous' || !p.userId)));
+    const deleted = this.data.community.length < initialLen;
+    if (deleted) {
+      this.save();
+    }
+    return deleted;
+  }
+
   // --- Notification Methods ---
   public getNotifications(userId: string): NotificationItem[] {
     if (!this.data.notifications) this.data.notifications = [];
