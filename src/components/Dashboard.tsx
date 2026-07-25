@@ -140,7 +140,7 @@ export default function Dashboard({ user, todayMood, onRecordMood, onNavigate, t
     <div className="space-y-8" id="dashboard-tab">
       {/* Dynamic Greetings Panel */}
       <div 
-        className="p-8 rounded-3xl bg-gradient-to-r from-violet-600 via-indigo-600 to-indigo-700 text-white relative overflow-hidden shadow-lg shadow-violet-100"
+        className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-violet-600 via-indigo-600 to-indigo-700 text-white relative overflow-hidden shadow-lg shadow-violet-100"
         id="greeting-panel"
       >
         <div className="absolute top-0 right-0 w-64 h-64 bg-violet-400/20 rounded-full blur-2xl"></div>
@@ -183,7 +183,7 @@ export default function Dashboard({ user, todayMood, onRecordMood, onNavigate, t
         <div className="lg:col-span-7 space-y-6">
           
           {/* DYNAMIC FUZZY SEARCH OPTION */}
-          <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-xs" id="dashboard-search-container">
+          <div className="p-4 sm:p-6 bg-white rounded-3xl border border-slate-100 shadow-xs" id="dashboard-search-container">
             <div className="flex items-center gap-2 mb-4">
               <Search className="w-5 h-5 text-indigo-605" />
               <h2 className="font-sans font-bold text-[#111827] text-md">Search Past Reflections & Mood Notes</h2>
@@ -245,7 +245,7 @@ export default function Dashboard({ user, todayMood, onRecordMood, onNavigate, t
             )}
           </div>
 
-          <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-xs" id="mood-selector-container">
+          <div className="p-4 sm:p-6 bg-white rounded-3xl border border-slate-100 shadow-xs" id="mood-selector-container">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="font-sans font-bold text-lg text-slate-800">
@@ -257,7 +257,7 @@ export default function Dashboard({ user, todayMood, onRecordMood, onNavigate, t
             </div>
 
             {todayMood ? (
-              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 text-center" id="mood-logged-today">
+              <div className="p-4 sm:p-6 rounded-2xl bg-slate-50 border border-slate-100 text-center" id="mood-logged-today">
                 <span className="text-5xl block animate-bounce" role="img" aria-label={todayMood.moodType}>
                   {moodConfig[todayMood.moodType]?.emoji || '🔮'}
                 </span>
@@ -301,7 +301,7 @@ export default function Dashboard({ user, todayMood, onRecordMood, onNavigate, t
                         <span className="text-3xl" role="img" aria-label={mtype}>
                           {cfg.emoji}
                         </span>
-                        <span className="text-xs font-sans font-bold text-slate-700 mt-1.5 block">
+                        <span className="text-[10px] sm:text-xs font-sans font-bold text-slate-700 mt-1.5 block truncate max-w-full">
                           {cfg.label}
                         </span>
                       </button>

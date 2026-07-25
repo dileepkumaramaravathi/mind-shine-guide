@@ -20,12 +20,12 @@ export default function LandingPage({ onGetStarted, onLoginClick }: LandingPageP
       <div className="absolute bottom-20 right-1/10 w-96 h-96 bg-[#edd9ff] rounded-full blur-3xl opacity-60 -z-5 animate-float"></div>
 
       {/* Header */}
-      <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between" id="landing-header">
+      <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 sm:py-6 flex flex-col sm:flex-row items-center justify-between gap-4" id="landing-header">
         <div className="flex items-center gap-2">
           <div className="p-2.5 bg-gradient-to-tr from-violet-600 to-indigo-500 rounded-2xl shadow-md text-white">
-            <Brain className="w-6 h-6" />
+            <Brain className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <span className="font-sans font-bold text-2xl tracking-tight bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
+          <span className="font-sans font-bold text-xl sm:text-2xl tracking-tight bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
             Mind Mood AI
           </span>
         </div>
@@ -48,7 +48,7 @@ export default function LandingPage({ onGetStarted, onLoginClick }: LandingPageP
       </div>
 
       {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-6 pt-16 pb-24 text-center grid lg:grid-cols-12 gap-12 items-center" id="landing-hero">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-20 sm:pb-24 text-center grid lg:grid-cols-12 gap-8 sm:gap-12 items-center" id="landing-hero">
         <div className="lg:col-span-7 text-left flex flex-col justify-center">
           <motion.div
             initial={{ opacity: 0, y: 15 }}

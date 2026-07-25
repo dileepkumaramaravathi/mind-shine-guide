@@ -113,12 +113,12 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
   const moodState = getAnimatedState();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f3f0ff] via-[#edf2ff] to-[#ecf2fe] flex items-center justify-center p-6 relative overflow-hidden" id="auth-page">
+    <div className="min-h-screen bg-gradient-to-br from-[#f3f0ff] via-[#edf2ff] to-[#ecf2fe] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden" id="auth-page">
       {/* Background elements */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-violet-200/50 rounded-full blur-3xl -z-5"></div>
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-200/50 rounded-full blur-3xl -z-5 animate-pulse-slow"></div>
 
-      <div className="w-full max-w-md bg-white/85 backdrop-blur-md rounded-3xl border border-white/60 shadow-xl shadow-slate-100 p-8 relative" id="auth-box">
+      <div className="w-full max-w-md bg-white/85 backdrop-blur-md rounded-3xl border border-white/60 shadow-xl shadow-slate-100 p-6 sm:p-8 relative" id="auth-box">
         {/* Back navigation */}
         <button 
           onClick={onBackToLanding}
