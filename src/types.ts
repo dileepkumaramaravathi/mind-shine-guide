@@ -53,6 +53,16 @@ export interface WeeklyInsight {
   copingAdvice: string[];
 }
 
+export interface CommentReply {
+  id: string;
+  userId?: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+  likes?: string[];
+  replies?: CommentReply[];
+}
+
 export interface CommunityItem {
   id: string;
   userId: string;
@@ -60,6 +70,8 @@ export interface CommunityItem {
   text: string;
   bgGradient: string;
   likes: string[]; // List of user IDs who liked it
+  bookmarks?: string[]; // List of user IDs who bookmarked it
+  comments?: CommentReply[]; // Nested comments and replies
   createdAt: string;
 }
 
@@ -85,3 +97,15 @@ export interface WellnessScore {
   summary: string;
 }
 
+export type MentalWellnessStage = 
+  | 'Excellent Mental Wellness'
+  | 'Positive Growth Stage'
+  | 'Healthy and Stable'
+  | 'Improving'
+  | 'Recovery Stage'
+  | 'Mild Stress'
+  | 'Moderate Stress'
+  | 'High Stress'
+  | 'Anxiety Risk'
+  | 'Burnout Risk'
+  | 'Needs Wellness Support';

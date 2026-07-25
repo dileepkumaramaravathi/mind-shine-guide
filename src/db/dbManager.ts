@@ -383,16 +383,92 @@ class DBManager {
     return post;
   }
 
+  public toggleBookmarkPost(userId: string, postId: string): CommunityItem | null {
+    if (!this.data.community) this.data.community = [];
+    const post = this.data.community.find((p) => p.id === postId);
+    if (!post) return null;
+
+    if (!post.bookmarks) post.bookmarks = [];
+    const idx = post.bookmarks.indexOf(userId);
+    if (idx !== -1) {
+      post.bookmarks.splice(idx, 1);
+    } else {
+      post.bookmarks.push(userId);
+    }
+    this.save();
+    return post;
+  }
+
+  public addCommunityComment(postId: string, userId: string, authorName: string, text: string) {
+    if (!this.data.community) this.data.community = [];
+    const post = this.data.community.find((p) => p.id === postId);
+    if (!post) return null;
+
+    if (!post.comments) post.comments = [];
+    const comment = {
+      id: crypto.randomUUID(),
+      userId,
+      authorName: authorName.trim() || 'Anonymous Friend',
+      text: text.trim(),
+      createdAt: new Date().toISOString(),
+      likes: [],
+      replies: [],
+    };
+    post.comments.push(comment);
+    this.save();
+    return { post, comment };
+  }
+
+  public addCommentReply(postId: string, commentId: string, userId: string, authorName: string, text: string) {
+    if (!this.data.community) this.data.community = [];
+    const post = this.data.community.find((p) => p.id === postId);
+    if (!post || !post.comments) return null;
+
+    const parentComment = post.comments.find((c) => c.id === commentId);
+    if (!parentComment) return null;
+
+    if (!parentComment.replies) parentComment.replies = [];
+    const reply = {
+      id: crypto.randomUUID(),
+      userId,
+      authorName: authorName.trim() || 'Anonymous Friend',
+      text: text.trim(),
+      createdAt: new Date().toISOString(),
+      likes: [],
+    };
+    parentComment.replies.push(reply);
+    this.save();
+    return { post, parentComment, reply };
+  }
+
   public deleteCommunityPost(userId: string, postId: string): boolean {
     if (!this.data.community) return false;
     const initialLen = this.data.community.length;
-    // Allow author of post or any user to delete their own post
-    this.data.community = this.data.community.filter((p) => !(p.id === postId && (p.userId === userId || p.userId === 'anonymous' || !p.userId)));
+    this.data.community = this.data.community.filter((p) => !(p.id === postId));
     const deleted = this.data.community.length < initialLen;
     if (deleted) {
       this.save();
     }
     return deleted;
+  }
+
+  public getUserPublicStats(userId: string, authorName?: string) {
+    const userPosts = (this.data.community || []).filter(
+      p => p.userId === userId || (authorName && p.authorName.toLowerCase() === authorName.toLowerCase())
+    );
+    const totalLikes = userPosts.reduce((acc, p) => acc + (p.likes ? p.likes.length : 0), 0);
+    const userMoods = (this.data.moods || []).filter(m => m.userId === userId);
+    const userJournals = (this.data.journals || []).filter(j => j.userId === userId);
+
+    return {
+      userId,
+      authorName: authorName || (userPosts[0]?.authorName) || 'Community Member',
+      postCount: userPosts.length,
+      likesReceived: totalLikes,
+      moodLogsCount: userMoods.length,
+      journalCount: userJournals.length,
+      memberSince: userPosts[0]?.createdAt || new Date().toISOString(),
+    };
   }
 
   // --- Notification Methods ---

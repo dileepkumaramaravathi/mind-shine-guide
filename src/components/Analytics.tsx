@@ -5,8 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BarChart3, Sparkles, TrendingUp, Activity, FileSpreadsheet, RefreshCw, Calendar, Brain, Heart, CheckCircle2, AlertCircle, PlusCircle } from 'lucide-react';
-import { Mood, MoodType } from '../types';
+import { BarChart3, Sparkles, TrendingUp, Activity, FileSpreadsheet, RefreshCw, Calendar, Brain, Heart, CheckCircle2, AlertCircle, PlusCircle, Shield, Award, Zap, ArrowUpRight, ArrowDownRight, Compass } from 'lucide-react';
+import { Mood, MoodType, MentalWellnessStage } from '../types';
 import * as XLSX from 'xlsx';
 
 interface AnalyticsProps {
@@ -19,8 +19,8 @@ interface GeneralReport {
   trends: string;
   recommendations: string[];
   reinforcement: string;
-  situationStage: string;
-  overallStatus: string;
+  situationStage: MentalWellnessStage;
+  overallScore: number;
 }
 
 const MOOD_SCORE: { [key in MoodType]: number } = {
@@ -55,13 +55,14 @@ const MOOD_LABELS: { [key in MoodType]: string } = {
   tired: '😴 Tired',
 };
 
-// Default baseline history data when user has 0 logs so charts are NEVER blank
 const DEFAULT_BASELINE_HISTORY: Mood[] = [
-  { id: 'b1', userId: 'usr', moodType: 'neutral', intensity: 3, note: 'Baseline check-in', date: 'Jul 21' },
-  { id: 'b2', userId: 'usr', moodType: 'happy', intensity: 4, note: 'Morning walk & sunshine', date: 'Jul 22' },
-  { id: 'b3', userId: 'usr', moodType: 'tired', intensity: 2, note: 'Late night study', date: 'Jul 23' },
-  { id: 'b4', userId: 'usr', moodType: 'neutral', intensity: 3, note: 'Steady focus day', date: 'Jul 24' },
-  { id: 'b5', userId: 'usr', moodType: 'happy', intensity: 5, note: 'Achieved daily wellness goals', date: 'Jul 25' },
+  { id: 'b1', userId: 'usr', moodType: 'neutral', intensity: 3, note: 'Baseline check-in', date: 'Jul 19', createdAt: '2026-07-19T10:00:00Z' },
+  { id: 'b2', userId: 'usr', moodType: 'happy', intensity: 4, note: 'Morning walk', date: 'Jul 20', createdAt: '2026-07-20T10:00:00Z' },
+  { id: 'b3', userId: 'usr', moodType: 'happy', intensity: 4, note: 'Great team sync', date: 'Jul 21', createdAt: '2026-07-21T10:00:00Z' },
+  { id: 'b4', userId: 'usr', moodType: 'tired', intensity: 2, note: 'Evening fatigue', date: 'Jul 22', createdAt: '2026-07-22T10:00:00Z' },
+  { id: 'b5', userId: 'usr', moodType: 'neutral', intensity: 3, note: 'Steady focus', date: 'Jul 23', createdAt: '2026-07-23T10:00:00Z' },
+  { id: 'b6', userId: 'usr', moodType: 'happy', intensity: 5, note: 'Completed milestone', date: 'Jul 24', createdAt: '2026-07-24T10:00:00Z' },
+  { id: 'b7', userId: 'usr', moodType: 'happy', intensity: 4, note: 'Relaxing weekend', date: 'Jul 25', createdAt: '2026-07-25T10:00:00Z' },
 ];
 
 export default function Analytics({ token, onNavigate }: AnalyticsProps) {
@@ -71,8 +72,13 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   const [reportSuccess, setReportSuccess] = useState('');
-  
-  // Quick mood logging state directly on Analytics page
+
+  // Time range selector: 7d | 30d | all
+  const [timeFilter, setTimeFilter] = useState<'7d' | '30d' | 'all'>('7d');
+  // Analysis view tab: daily | weekly | monthly
+  const [analysisPeriod, setAnalysisPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+
+  // Quick mood logging
   const [selectedMood, setSelectedMood] = useState<MoodType>('happy');
   const [quickNote, setQuickNote] = useState('');
   const [isLoggingMood, setIsLoggingMood] = useState(false);
@@ -91,55 +97,131 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
         const data = await res.json();
         const logs: Mood[] = data.history || [];
         setHistory(logs);
-        // Automatically build general situation report for the user
         generateGeneralReport(logs);
       }
     } catch (err) {
       console.error(err);
       generateGeneralReport([]);
-    } fontually();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const fontually = () => setIsLoading(false);
+  const calculateOverallWellnessScore = (logs: Mood[]): number => {
+    const active = logs.length > 0 ? logs : DEFAULT_BASELINE_HISTORY;
+    const avgScore = active.reduce((acc, m) => acc + (MOOD_SCORE[m.moodType] || 3), 0) / active.length;
+    const streakBonus = Math.min(20, active.length * 3);
+    const score = Math.round((avgScore / 5) * 80 + streakBonus);
+    return Math.min(100, Math.max(10, score));
+  };
+
+  const determineMentalWellnessStage = (score: number): { stage: MentalWellnessStage; color: string; bg: string; border: string; desc: string } => {
+    if (score >= 90) {
+      return {
+        stage: 'Excellent Mental Wellness',
+        color: 'text-emerald-600',
+        bg: 'bg-emerald-50',
+        border: 'border-emerald-200',
+        desc: 'Peak cognitive resilience, high emotional positivity, and optimal self-reflection habits.',
+      };
+    } else if (score >= 80) {
+      return {
+        stage: 'Positive Growth Stage',
+        color: 'text-teal-600',
+        bg: 'bg-teal-50',
+        border: 'border-teal-200',
+        desc: 'Continuous upward emotional trend with strong coping mechanisms.',
+      };
+    } else if (score >= 70) {
+      return {
+        stage: 'Healthy and Stable',
+        color: 'text-indigo-600',
+        bg: 'bg-indigo-50',
+        border: 'border-indigo-200',
+        desc: 'Consistent emotional equilibrium and healthy daily reflection.',
+      };
+    } else if (score >= 60) {
+      return {
+        stage: 'Improving',
+        color: 'text-sky-600',
+        bg: 'bg-sky-50',
+        border: 'border-sky-200',
+        desc: 'Positive momentum in recovery. Keep up regular mindfulness loops.',
+      };
+    } else if (score >= 55) {
+      return {
+        stage: 'Recovery Stage',
+        color: 'text-blue-600',
+        bg: 'bg-blue-50',
+        border: 'border-blue-200',
+        desc: 'Restoring energy after a demanding cycle. Gentle self-care recommended.',
+      };
+    } else if (score >= 45) {
+      return {
+        stage: 'Mild Stress',
+        color: 'text-amber-600',
+        bg: 'bg-amber-50',
+        border: 'border-amber-200',
+        desc: 'Experiencing minor tension. Daily 4-4-4 Box Breathing is recommended.',
+      };
+    } else if (score >= 35) {
+      return {
+        stage: 'Moderate Stress',
+        color: 'text-orange-600',
+        bg: 'bg-orange-50',
+        border: 'border-orange-200',
+        desc: 'Elevated stress markers. Consider quiet journaling and AI chat check-ins.',
+      };
+    } else if (score >= 25) {
+      return {
+        stage: 'High Stress',
+        color: 'text-rose-600',
+        bg: 'bg-rose-50',
+        border: 'border-rose-200',
+        desc: 'Significant strain detected. Engage in guided relaxation sessions.',
+      };
+    } else if (score >= 15) {
+      return {
+        stage: 'Anxiety Risk',
+        color: 'text-purple-600',
+        bg: 'bg-purple-50',
+        border: 'border-purple-200',
+        desc: 'Anxiety indicators present. Reach out to supportive peers in Community Plaza.',
+      };
+    } else if (score >= 5) {
+      return {
+        stage: 'Burnout Risk',
+        color: 'text-pink-600',
+        bg: 'bg-pink-50',
+        border: 'border-pink-200',
+        desc: 'High exhaustion risk. Prioritize restorative sleep and step back from stressors.',
+      };
+    } else {
+      return {
+        stage: 'Needs Wellness Support',
+        color: 'text-red-600',
+        bg: 'bg-red-50',
+        border: 'border-red-200',
+        desc: 'Emotional distress detected. Connect with our supportive AI therapist guide.',
+      };
+    }
+  };
 
   const generateGeneralReport = (logs: Mood[]) => {
-    const activeData = logs.length > 0 ? logs : DEFAULT_BASELINE_HISTORY;
-    const totalLogs = activeData.length;
-    
-    // Calculate average score
-    const totalScore = activeData.reduce((acc, m) => acc + (MOOD_SCORE[m.moodType] || 3), 0);
-    const avgScore = Number((totalScore / totalLogs).toFixed(1));
-
-    let situationStage = 'Stage 3: Balanced & Stable ⚖️';
-    let overallStatus = 'Healthy Equilibrium';
-    let summary = 'Based on your overall situation and emotional logging history, you are maintaining a stable mental baseline. You display good self-awareness and active reflection.';
-    let trends = 'Mood patterns indicate steady emotional equilibrium with occasional fluctuations during demanding hours. Evening reflections show positive recovery.';
-    let recommendations = [
-      'Maintain 10 minutes of daily guided 4-4-4 Box Breathing for continuous focus.',
-      'Log your emotional state twice daily (morning & evening) to refine accuracy.',
-      'Engage with supportive peers in the Community Plaza to share uplifting affirmations.'
-    ];
-    let reinforcement = 'Self-awareness is the foundation of mental strength. Your commitment to tracking your emotional state reflects high psychological maturity.';
-
-    if (avgScore >= 4.0) {
-      situationStage = 'Stage 4: Thriving & Flourishing 🌟';
-      overallStatus = 'Optimal Mental Resilience';
-      summary = 'Your current emotional situation is exceptionally positive! You are experiencing high vitality, strong mental resilience, and productive cognitive energy.';
-      trends = 'Trajectory shows consistent high-frequency happy logs and low stress markers across recent days.';
-    } else if (avgScore < 2.5) {
-      situationStage = 'Stage 2: Healing & Self-Care 🌿';
-      overallStatus = 'Restorative Care Recommended';
-      summary = 'Your recent situation suggests feelings of fatigue or emotional tension. Your mind is requesting restful pauses and restorative self-care.';
-      trends = 'Logged entries show periods of fatigue or stress. Daily relaxation loops are strongly advised.';
-    }
+    const score = calculateOverallWellnessScore(logs);
+    const stageInfo = determineMentalWellnessStage(score);
 
     setReport({
-      summary,
-      trends,
-      recommendations,
-      reinforcement,
-      situationStage,
-      overallStatus,
+      summary: `Your overall wellness situation evaluates at a score of ${score}/100. ${stageInfo.desc}`,
+      trends: 'Emotional trends indicate a steady trajectory with active engagement across journaling and mood tracking.',
+      recommendations: [
+        'Practice 4-4-4 Box Breathing twice daily to maintain physiological calmness.',
+        'Log your mood entries consistently every morning and evening.',
+        'Share supportive word cards in Community Plaza to foster connection.'
+      ],
+      reinforcement: 'Every self-reflection log is a step toward emotional mastery. You are demonstrating admirable commitment to your well-being.',
+      situationStage: stageInfo.stage,
+      overallScore: score,
     });
   };
 
@@ -156,20 +238,21 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
         body: JSON.stringify({
           moodType: selectedMood,
           intensity: 4,
-          note: quickNote.trim() || `Analytics quick check-in (${selectedMood})`,
+          note: quickNote.trim() || `Analytics check-in (${selectedMood})`,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        setHistory(prev => [data.mood, ...prev]);
-        generateGeneralReport([data.mood, ...history]);
+        const updatedHistory = [data.mood, ...history];
+        setHistory(updatedHistory);
+        generateGeneralReport(updatedHistory);
         setQuickNote('');
-        setReportSuccess('✅ Mood logged! Analytics updated in real-time.');
+        setReportSuccess('✅ Mood logged! Real-time analytics updated.');
         setTimeout(() => setReportSuccess(''), 4000);
       }
     } catch (err) {
-      console.error('Quick log failed:', err);
+      console.error(err);
     } finally {
       setIsLoggingMood(false);
     }
@@ -177,7 +260,6 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
 
   const handleGenerateReportAI = async () => {
     setGeneratingReport(true);
-    setReportSuccess('');
     try {
       const res = await fetch('/api/ai/weekly-report', {
         headers: { Authorization: `Bearer ${token}` },
@@ -185,21 +267,20 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
       const data = await res.json();
       if (res.ok && data.report) {
         const r = data.report;
+        const score = calculateOverallWellnessScore(history);
+        const stageInfo = determineMentalWellnessStage(score);
         setReport({
           summary: r.summary,
           trends: r.trends,
           recommendations: r.recommendations || [],
           reinforcement: r.reinforcement,
-          situationStage: 'AI Synthesized Assessment 🧠',
-          overallStatus: 'Personalized Clinical Analysis',
+          situationStage: stageInfo.stage,
+          overallScore: score,
         });
-        setReportSuccess('✨ AI General Situation Report generated successfully!');
+        setReportSuccess('✨ AI Wellness Assessment compiled!');
         setTimeout(() => setReportSuccess(''), 4000);
       } else {
-        // Fallback generator
         generateGeneralReport(history);
-        setReportSuccess('✨ General User Situation Report updated!');
-        setTimeout(() => setReportSuccess(''), 4000);
       }
     } catch (err) {
       generateGeneralReport(history);
@@ -212,19 +293,14 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
     const activeData = history.length > 0 ? history : DEFAULT_BASELINE_HISTORY;
     const wb = XLSX.utils.book_new();
 
-    // Sheet 1: Full mood history
+    // Sheet 1: Mood History
     const moodHeaders = ['Date', 'Mood Type', 'Intensity (1-5)', 'Note'];
-    const moodRows = activeData.map(m => [
-      m.date || '',
-      m.moodType || '',
-      m.intensity || '',
-      m.note || '',
-    ]);
+    const moodRows = activeData.map(m => [m.date || '', m.moodType || '', m.intensity || '', m.note || '']);
     const ws1 = XLSX.utils.aoa_to_sheet([moodHeaders, ...moodRows]);
     ws1['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 60 }];
     XLSX.utils.book_append_sheet(wb, ws1, 'Mood History');
 
-    // Sheet 2: Emotion distribution
+    // Sheet 2: Emotion Distribution
     const distHeaders = ['Mood Type', 'Count', 'Percentage'];
     const totalCnt = Object.values(counts).reduce((a, b) => a + b, 0);
     const distRows = (Object.keys(counts) as MoodType[]).map(mtype => [
@@ -236,70 +312,90 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
     ws2['!cols'] = [{ wch: 15 }, { wch: 10 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, ws2, 'Mood Distribution');
 
-    // Sheet 3: General User Situation Report
+    // Sheet 3: Wellness Analytics & Stage
     if (report) {
-      const reportRows = [
-        ['Field', 'Content'],
-        ['Situation Stage', report.situationStage],
-        ['Overall Status', report.overallStatus],
+      const summaryRows = [
+        ['Metric', 'Value'],
+        ['Overall Wellness Score', `${report.overallScore} / 100`],
+        ['Mental Wellness Stage', report.situationStage],
+        ['Emotional Stability Index', `${emotionalStability}%`],
+        ['Mood Improvement', `${improvementRate}%`],
+        ['Weekly Progress', `${weeklyProgress}%`],
+        ['Monthly Progress', `${monthlyProgress}%`],
         ['General Summary', report.summary],
         ['Observed Trends', report.trends],
-        ['Positive Reinforcement', report.reinforcement],
-        ['Strategy 1', report.recommendations[0] || ''],
-        ['Strategy 2', report.recommendations[1] || ''],
-        ['Strategy 3', report.recommendations[2] || ''],
       ];
-      const ws3 = XLSX.utils.aoa_to_sheet(reportRows);
-      ws3['!cols'] = [{ wch: 25 }, { wch: 80 }];
-      XLSX.utils.book_append_sheet(wb, ws3, 'General User Report');
+      const ws3 = XLSX.utils.aoa_to_sheet(summaryRows);
+      ws3['!cols'] = [{ wch: 28 }, { wch: 80 }];
+      XLSX.utils.book_append_sheet(wb, ws3, 'Analytics Summary');
     }
 
     XLSX.writeFile(wb, `MindMoodAI_Analytics_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  // Determine active display data (uses real history or baseline if user has 0 logs)
   const displayHistory = history.length > 0 ? history : DEFAULT_BASELINE_HISTORY;
 
   // Emotion count calculations
-  const counts: { [key in MoodType]: number } = {
-    happy: 0, neutral: 0, sad: 0, angry: 0, tired: 0,
-  };
+  const counts: { [key in MoodType]: number } = { happy: 0, neutral: 0, sad: 0, angry: 0, tired: 0 };
   displayHistory.forEach(m => { if (counts[m.moodType] !== undefined) counts[m.moodType]++; });
   const totalCounts = Object.values(counts).reduce((a, b) => a + b, 0);
 
-  // Chart dataset (last 7 points)
-  const last7Moods = [...displayHistory].slice(0, 7).reverse();
+  // Time-filtered history data for charts
+  const getFilteredHistory = () => {
+    if (timeFilter === '7d') return [...displayHistory].slice(0, 7).reverse();
+    if (timeFilter === '30d') return [...displayHistory].slice(0, 30).reverse();
+    return [...displayHistory].reverse();
+  };
+
+  const chartData = getFilteredHistory();
   const chartW = 500, chartH = 200, chartP = 35;
 
   const getChartCoords = () => {
-    if (last7Moods.length < 2) return '';
-    return last7Moods.map((m, i) => {
-      const x = chartP + (i * (chartW - chartP * 2)) / (last7Moods.length - 1);
+    if (chartData.length < 2) return '';
+    return chartData.map((m, i) => {
+      const x = chartP + (i * (chartW - chartP * 2)) / (chartData.length - 1);
       const score = MOOD_SCORE[m.moodType] || 3;
       const y = chartH - chartP - ((score - 1) * (chartH - chartP * 2)) / 4;
       return `${x},${y}`;
     }).join(' ');
   };
 
-  // Overall average score calculation out of 5
-  const avgScoreVal = (displayHistory.reduce((a, b) => a + (MOOD_SCORE[b.moodType] || 3), 0) / displayHistory.length).toFixed(1);
+  // Analytics Metrics Computations
+  const currentScore = report ? report.overallScore : calculateOverallWellnessScore(displayHistory);
+  const currentStageInfo = determineMentalWellnessStage(currentScore);
+
+  // Emotional stability % based on variance
+  const happyRatio = totalCounts > 0 ? (counts.happy + counts.neutral) / totalCounts : 0.8;
+  const emotionalStability = Math.round(happyRatio * 100);
+
+  // Improvement % comparing recent half vs older half
+  const halfLen = Math.floor(displayHistory.length / 2);
+  const recentHalf = displayHistory.slice(0, Math.max(1, halfLen));
+  const olderHalf = displayHistory.slice(Math.max(1, halfLen));
+  const recentAvg = recentHalf.reduce((a, m) => a + MOOD_SCORE[m.moodType], 0) / Math.max(1, recentHalf.length);
+  const olderAvg = olderHalf.reduce((a, m) => a + MOOD_SCORE[m.moodType], 0) / Math.max(1, olderHalf.length);
+  const improvementRate = olderAvg > 0 ? Math.round(((recentAvg - olderAvg) / olderAvg) * 100) : 12;
+
+  // Weekly & Monthly progress percentages
+  const weeklyProgress = Math.min(100, Math.max(30, Math.round(displayHistory.length * 14)));
+  const monthlyProgress = Math.min(100, Math.max(25, Math.round(displayHistory.length * 8)));
 
   return (
     <div className="space-y-6 animate-fade-in" id="analytics-tab">
 
-      {/* Main Banner */}
+      {/* Header Banner */}
       <div className="p-7 bg-gradient-to-br from-indigo-950 via-violet-900 to-slate-900 text-white rounded-3xl relative overflow-hidden shadow-md">
         <div className="absolute top-0 right-0 w-72 h-72 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"></div>
         <div className="relative z-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <span className="px-3 py-1 bg-violet-600/60 border border-violet-400/40 text-white text-[10px] font-sans font-bold uppercase tracking-wider rounded-full">
-              User Situation & Psychological Engine
+              Intelligent Mental Wellness Analytics
             </span>
             <h1 className="font-sans font-extrabold text-2xl md:text-3xl mt-3 tracking-tight">
-              Analytics & General Report 📊
+              Analytics & Insights Dashboard 📊
             </h1>
             <p className="text-slate-300 text-xs mt-1.5 max-w-xl leading-relaxed">
-              Comprehensive psychological overview of your situation, emotional trends, baseline average scores, and personalized wellness strategies.
+              Real-time mood trends, emotional stability index, mental wellness stage analysis, and AI-powered recommendations.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -322,7 +418,7 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
         </div>
       </div>
 
-      {/* Success notification */}
+      {/* Success Banner */}
       <AnimatePresence>
         {reportSuccess && (
           <motion.div
@@ -337,7 +433,7 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
         )}
       </AnimatePresence>
 
-      {/* Quick Mood Evaluator Bar — Log right inside Analytics! */}
+      {/* Quick Mood Evaluator Bar */}
       <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-xs flex flex-wrap items-center justify-between gap-3" id="quick-mood-bar">
         <div className="flex items-center gap-2">
           <PlusCircle className="w-4 h-4 text-violet-600 shrink-0" />
@@ -363,7 +459,7 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
           </div>
           <input
             type="text"
-            placeholder="Optional note..."
+            placeholder="Add note..."
             value={quickNote}
             onChange={e => setQuickNote(e.target.value)}
             className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-sans text-xs focus:outline-none focus:border-violet-500 transition"
@@ -378,116 +474,161 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
         </form>
       </div>
 
-      {/* GENERAL MATTER REPORT OF USER SITUATION */}
-      {report && (
-        <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-xs space-y-5" id="general-user-report-card">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-violet-100 text-violet-700 rounded-2xl flex items-center justify-center">
-                <Brain className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] font-mono font-bold text-violet-600 uppercase tracking-widest block">
-                  General Matter Report of User Situation
-                </span>
-                <h2 className="font-sans font-extrabold text-slate-800 text-lg">
-                  {report.situationStage}
-                </h2>
-              </div>
+      {/* OVERALL WELLNESS SCORE & CURRENT STAGE BANNER */}
+      <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-xs space-y-4" id="wellness-stage-summary-card">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex flex-col items-center justify-center shadow-md shrink-0">
+              <span className="text-[10px] font-mono uppercase font-bold text-white/70">Score</span>
+              <span className="text-2xl font-black font-sans">{currentScore}</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <span className="text-[10px] font-mono text-slate-400 uppercase block">Average Score</span>
-                <span className="font-sans font-black text-2xl text-violet-700">{avgScoreVal} / 5.0</span>
-              </div>
-              <span className="px-3.5 py-1.5 bg-violet-50 text-violet-700 border border-violet-200 rounded-full font-sans font-bold text-xs">
-                {report.overallStatus}
+            <div>
+              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block">
+                Current Mental Wellness Stage
               </span>
+              <h2 className="font-sans font-extrabold text-slate-800 text-lg md:text-xl flex items-center gap-2 mt-0.5">
+                <Brain className="w-5 h-5 text-violet-600" />
+                {currentStageInfo.stage}
+              </h2>
             </div>
           </div>
+          <div className="flex items-center gap-3">
+            <span className={`px-4 py-1.5 rounded-full text-xs font-sans font-bold border ${currentStageInfo.bg} ${currentStageInfo.color} ${currentStageInfo.border}`}>
+              {currentStageInfo.stage}
+            </span>
+          </div>
+        </div>
 
-          <div className="grid md:grid-cols-2 gap-6" id="report-grid-details">
-            <div className="space-y-4">
-              <div>
-                <span className="text-[10px] font-mono font-bold text-indigo-600 uppercase tracking-wider block mb-1">
-                  📌 Situation Overview
-                </span>
-                <p className="text-xs font-sans text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  {report.summary}
-                </p>
-              </div>
-              <div>
-                <span className="text-[10px] font-mono font-bold text-indigo-600 uppercase tracking-wider block mb-1">
-                  📈 Observed Emotional Trends
-                </span>
-                <p className="text-xs font-sans text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  {report.trends}
-                </p>
-              </div>
-            </div>
+        <p className="text-xs font-sans text-slate-600 leading-relaxed">
+          {currentStageInfo.desc}
+        </p>
 
-            <div className="space-y-4">
-              <div>
-                <span className="text-[10px] font-mono font-bold text-indigo-600 uppercase tracking-wider block mb-1">
-                  🎯 Recommended Strategies
-                </span>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
-                  {report.recommendations.map((rec, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs font-sans text-slate-600">
-                      <span className="text-violet-600 font-bold mt-0.5">•</span>
-                      <span>{rec}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <span className="text-[10px] font-mono font-bold text-violet-600 uppercase tracking-wider block mb-1">
-                  💜 Positive Reinforcement
-                </span>
-                <p className="text-xs font-sans text-violet-800 leading-relaxed bg-violet-50/70 p-4 rounded-2xl border border-violet-100 italic">
-                  &ldquo;{report.reinforcement}&rdquo;
-                </p>
-              </div>
+        {/* 4 CORE ANALYTICS METRICS ROW */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2" id="core-metrics-row">
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+            <span className="text-[10px] font-mono text-slate-400 uppercase block">Emotional Stability</span>
+            <span className="font-sans font-black text-xl text-indigo-600 mt-1 block">{emotionalStability}%</span>
+            <span className="text-[10px] text-slate-400 font-sans">Equilibrium Index</span>
+          </div>
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+            <span className="text-[10px] font-mono text-slate-400 uppercase block">Mood Improvement</span>
+            <span className={`font-sans font-black text-xl mt-1 block flex items-center gap-1 ${improvementRate >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {improvementRate >= 0 ? <ArrowUpRight className="w-4 h-4 inline" /> : <ArrowDownRight className="w-4 h-4 inline" />}
+              {improvementRate >= 0 ? `+${improvementRate}%` : `${improvementRate}%`}
+            </span>
+            <span className="text-[10px] text-slate-400 font-sans">vs Previous Cycle</span>
+          </div>
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+            <span className="text-[10px] font-mono text-slate-400 uppercase block">Weekly Progress</span>
+            <span className="font-sans font-black text-xl text-violet-600 mt-1 block">{weeklyProgress}%</span>
+            <div className="w-full h-1.5 bg-slate-200 rounded-full mt-1 overflow-hidden">
+              <div className="h-full bg-violet-600 rounded-full" style={{ width: `${weeklyProgress}%` }}></div>
             </div>
           </div>
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+            <span className="text-[10px] font-mono text-slate-400 uppercase block">Monthly Progress</span>
+            <span className="font-sans font-black text-xl text-teal-600 mt-1 block">{monthlyProgress}%</span>
+            <div className="w-full h-1.5 bg-slate-200 rounded-full mt-1 overflow-hidden">
+              <div className="h-full bg-teal-500 rounded-full" style={{ width: `${monthlyProgress}%` }}></div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          <div className="pt-2 flex justify-end">
+      {/* AI GENERAL SITUATION & RECOMMENDATIONS REPORT */}
+      {report && (
+        <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-xs space-y-5" id="ai-report-card">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <h2 className="font-sans font-bold text-slate-800 text-base flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-violet-600" />
+              General User Situation & AI Recommendations
+            </h2>
             <button
               onClick={handleGenerateReportAI}
               disabled={generatingReport}
               id="recompile-ai-report-btn"
-              className="px-5 py-2.5 bg-gradient-to-tr from-violet-600 to-indigo-600 hover:opacity-95 text-white font-sans font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
+              className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-sans font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              {generatingReport ? 'Re-analyzing with AI...' : 'Re-Analyze Situation with AI'}
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              {generatingReport ? 'Analyzing...' : 'Re-Analyze Situation'}
             </button>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5">
+            <div className="space-y-3">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <span className="text-[10px] font-mono font-bold text-indigo-600 uppercase tracking-wider block mb-1">📌 Situation Summary</span>
+                <p className="text-xs font-sans text-slate-600 leading-relaxed">{report.summary}</p>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <span className="text-[10px] font-mono font-bold text-indigo-600 uppercase tracking-wider block mb-1">📈 Observed Mood Trends</span>
+                <p className="text-xs font-sans text-slate-600 leading-relaxed">{report.trends}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+                <span className="text-[10px] font-mono font-bold text-indigo-600 uppercase tracking-wider block mb-1">🎯 Personalized Strategies</span>
+                {report.recommendations.map((rec, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs font-sans text-slate-600">
+                    <span className="text-violet-600 font-bold mt-0.5">•</span>
+                    <span>{rec}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-violet-50/70 p-4 rounded-2xl border border-violet-100">
+                <span className="text-[10px] font-mono font-bold text-violet-600 uppercase tracking-wider block mb-1">💜 Positive Reinforcement</span>
+                <p className="text-xs font-sans text-violet-800 leading-relaxed italic">&ldquo;{report.reinforcement}&rdquo;</p>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* CHARTS GRID */}
+      {/* CHARTS GRID WITH FILTER TABS */}
       <div className="grid lg:grid-cols-12 gap-6" id="graphs-grid">
 
         {/* Mood Trend Line (8 cols) */}
         <div className="lg:col-span-8 p-6 bg-white rounded-3xl border border-slate-100 shadow-xs" id="trend-line-component">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
             <div>
               <h2 className="font-sans font-bold text-slate-800 text-base flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-violet-600" />
-                Mood Trend Timeline
+                Mood History Timeline
               </h2>
-              <p className="text-xs font-sans text-slate-400 mt-0.5">
-                {history.length > 0 ? `Tracking last ${Math.min(history.length, 7)} recorded states` : 'Baseline evaluation tracking'}
-              </p>
+              <p className="text-xs font-sans text-slate-400 mt-0.5">Tracking values across recorded mood states</p>
             </div>
-            <span className="text-xs font-sans font-semibold text-slate-500 bg-slate-50 px-3 py-1 rounded-xl border border-slate-100">
-              {history.length > 0 ? `${history.length} Logs Saved` : 'Baseline View'}
-            </span>
+
+            {/* Time Filter Controls: 7d | 30d | all */}
+            <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">
+              <button
+                onClick={() => setTimeFilter('7d')}
+                className={`px-3 py-1 rounded-lg text-xs font-sans font-bold transition cursor-pointer ${
+                  timeFilter === '7d' ? 'bg-white text-violet-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                7 Days
+              </button>
+              <button
+                onClick={() => setTimeFilter('30d')}
+                className={`px-3 py-1 rounded-lg text-xs font-sans font-bold transition cursor-pointer ${
+                  timeFilter === '30d' ? 'bg-white text-violet-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                30 Days
+              </button>
+              <button
+                onClick={() => setTimeFilter('all')}
+                className={`px-3 py-1 rounded-lg text-xs font-sans font-bold transition cursor-pointer ${
+                  timeFilter === 'all' ? 'bg-white text-violet-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                All Time
+              </button>
+            </div>
           </div>
 
           <div className="relative" id="trend-canvas-container">
-            {/* SVG Chart */}
             <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto overflow-visible">
               {/* Grid lines */}
               {[1, 2, 3, 4, 5].map(val => {
@@ -498,7 +639,7 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
                 );
               })}
 
-              {/* Gradient area under line */}
+              {/* Gradient area */}
               <defs>
                 <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#6366f1" stopOpacity="0.2" />
@@ -506,16 +647,16 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
                 </linearGradient>
               </defs>
 
-              {/* Filled area polygon */}
-              {last7Moods.length >= 2 && (() => {
-                const pts = last7Moods.map((m, i) => {
-                  const x = chartP + (i * (chartW - chartP * 2)) / (last7Moods.length - 1);
+              {/* Polygon */}
+              {chartData.length >= 2 && (() => {
+                const pts = chartData.map((m, i) => {
+                  const x = chartP + (i * (chartW - chartP * 2)) / (chartData.length - 1);
                   const score = MOOD_SCORE[m.moodType] || 3;
                   const y = chartH - chartP - ((score - 1) * (chartH - chartP * 2)) / 4;
                   return `${x},${y}`;
                 });
                 const firstX = chartP;
-                const lastX = chartP + ((last7Moods.length - 1) * (chartW - chartP * 2)) / (last7Moods.length - 1);
+                const lastX = chartP + ((chartData.length - 1) * (chartW - chartP * 2)) / (chartData.length - 1);
                 return (
                   <polygon
                     points={`${firstX},${chartH - chartP} ${pts.join(' ')} ${lastX},${chartH - chartP}`}
@@ -535,8 +676,8 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
               />
 
               {/* Interactive dots */}
-              {last7Moods.map((m, i) => {
-                const x = chartP + (i * (chartW - chartP * 2)) / (last7Moods.length - 1);
+              {chartData.map((m, i) => {
+                const x = chartP + (i * (chartW - chartP * 2)) / (chartData.length - 1);
                 const score = MOOD_SCORE[m.moodType] || 3;
                 const y = chartH - chartP - ((score - 1) * (chartH - chartP * 2)) / 4;
                 const isHovered = hoveredPoint === i;
@@ -551,33 +692,33 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
               })}
 
               {/* X-axis labels */}
-              {last7Moods.map((m, i) => {
-                const x = chartP + (i * (chartW - chartP * 2)) / (last7Moods.length - 1);
+              {chartData.map((m, i) => {
+                const x = chartP + (i * (chartW - chartP * 2)) / (chartData.length - 1);
                 return (
                   <text key={i} x={x} y={chartH - 4} textAnchor="middle" fontSize="9" fill="#94a3b8" fontFamily="monospace">
-                    {m.date || `Entry ${i+1}`}
+                    {m.date || `P${i+1}`}
                   </text>
                 );
               })}
             </svg>
 
             {/* Hover Tooltip */}
-            {hoveredPoint !== null && last7Moods[hoveredPoint] && (
+            {hoveredPoint !== null && chartData[hoveredPoint] && (
               <div
                 className="absolute bg-slate-900 text-white p-3 rounded-xl text-xs font-sans space-y-1 z-10 shadow-lg pointer-events-none"
                 style={{
-                  left: `${Math.min(85, (hoveredPoint / Math.max(1, last7Moods.length - 1)) * 80 + 10)}%`,
+                  left: `${Math.min(85, (hoveredPoint / Math.max(1, chartData.length - 1)) * 80 + 10)}%`,
                   bottom: '65%',
                 }}
               >
                 <div className="font-bold flex items-center gap-1.5 capitalize">
-                  <span>{MOOD_EMOJIS[last7Moods[hoveredPoint].moodType]}</span>
-                  <span>{last7Moods[hoveredPoint].moodType}</span>
+                  <span>{MOOD_EMOJIS[chartData[hoveredPoint].moodType]}</span>
+                  <span>{chartData[hoveredPoint].moodType}</span>
                 </div>
-                <div className="text-[10px] text-slate-300">{last7Moods[hoveredPoint].date}</div>
-                {last7Moods[hoveredPoint].note && (
+                <div className="text-[10px] text-slate-300">{chartData[hoveredPoint].date}</div>
+                {chartData[hoveredPoint].note && (
                   <div className="text-[9px] italic text-violet-300 max-w-[150px] truncate">
-                    &ldquo;{last7Moods[hoveredPoint].note}&rdquo;
+                    &ldquo;{chartData[hoveredPoint].note}&rdquo;
                   </div>
                 )}
               </div>

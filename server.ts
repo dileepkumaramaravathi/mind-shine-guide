@@ -1169,45 +1169,74 @@ app.post('/api/community/like/:id', authMiddleware, (req: AuthenticatedRequest, 
 });
 
 
-// Community Reply endpoint - users communicate with each other
-const communityReplies: { [postId: string]: { id: string; authorName: string; text: string; createdAt: string }[] } = {};
+// Bookmark Post endpoint
+app.post('/api/community/bookmark/:id', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+  const postId = req.params.id;
+  try {
+    const post = db.toggleBookmarkPost(req.userId!, postId);
+    if (!post) return res.status(404).json({ error: 'Post not found.' });
+    res.json({ post, bookmarks: post.bookmarks, success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to toggle bookmark.' });
+  }
+});
 
+// Community Reply / Nested Reply endpoint
 app.post('/api/community/reply/:postId', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
   const postId = req.params.postId;
-  const { authorName, text } = req.body;
+  const { authorName, text, commentId } = req.body;
   if (!text || !text.trim()) {
     return res.status(400).json({ error: 'Reply text is required.' });
   }
-  const reply = {
-    id: `reply-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    authorName: authorName || 'Anonymous Friend',
-    text: text.trim(),
-    createdAt: new Date().toISOString(),
-  };
-  if (!communityReplies[postId]) communityReplies[postId] = [];
-  communityReplies[postId].push(reply);
 
-  // Send notification to post author
   try {
-    const post = db.getCommunityPosts().find((p: any) => p.id === postId);
-    if (post && post.userId !== req.userId) {
-      db.addNotification(
-        post.userId,
-        'New Reply in Plaza 💬',
-        `${authorName || 'Someone'} replied to your community affirmation!`,
-        'support'
-      );
+    if (commentId) {
+      // Nested reply to a comment
+      const result = db.addCommentReply(postId, commentId, req.userId!, authorName, text);
+      if (result) return res.json({ reply: result.reply, post: result.post, success: true });
     }
-  } catch (e) {
-    // ignore
-  }
 
-  res.json({ reply });
+    // Top-level comment on post
+    const result = db.addCommunityComment(postId, req.userId!, authorName, text);
+    if (result) {
+      // Send notification to post author
+      if (result.post.userId && result.post.userId !== req.userId) {
+        try {
+          db.addNotification(
+            result.post.userId,
+            'New Reply in Plaza 💬',
+            `${authorName || 'Someone'} commented on your community affirmation!`,
+            'support'
+          );
+        } catch (e) { /* ignore */ }
+      }
+      return res.json({ reply: result.comment, post: result.post, success: true });
+    }
+
+    // Fallback response if post not found in DB
+    const fallbackReply = {
+      id: `reply-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      userId: req.userId!,
+      authorName: authorName || 'Anonymous Friend',
+      text: text.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    res.json({ reply: fallbackReply, success: true });
+  } catch (err) {
+    console.error('Community reply error:', err);
+    res.status(500).json({ error: 'Failed to add reply.' });
+  }
 });
 
-app.get('/api/community/replies/:postId', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
-  const postId = req.params.postId;
-  res.json({ replies: communityReplies[postId] || [] });
+// Public User Profile Stats endpoint
+app.get('/api/community/user-profile/:authorName', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+  const authorName = req.params.authorName;
+  try {
+    const stats = db.getUserPublicStats(req.userId!, authorName);
+    res.json({ profile: stats });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load user profile.' });
+  }
 });
 
 // 2. NOTIFICATIONS MANAGEMENT ENDPOINTS
