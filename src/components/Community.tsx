@@ -87,8 +87,16 @@ export default function Community({ token }: CommunityProps) {
       if (res.ok) {
         const data = await res.json();
         const incoming: CommunityItem[] = data.posts || [];
-        setPosts(incoming);
-        localStorage.setItem('mind_mood_community_posts', JSON.stringify(incoming));
+        setPosts(prev => {
+          const merged = incoming.map(inc => {
+            const existing = prev.find(p => p.id === inc.id);
+            const comments = (inc.comments && inc.comments.length > 0) ? inc.comments : (existing?.comments || []);
+            const bookmarks = (inc.bookmarks && inc.bookmarks.length > 0) ? inc.bookmarks : (existing?.bookmarks || []);
+            return { ...inc, comments, bookmarks };
+          });
+          localStorage.setItem('mind_mood_community_posts', JSON.stringify(merged));
+          return merged;
+        });
       }
     } catch (e) {
       console.error('Fetch posts error:', e);
