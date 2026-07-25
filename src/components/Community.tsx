@@ -60,6 +60,18 @@ export default function Community({ token }: CommunityProps) {
 
   const fetchPosts = async (showLoader = true) => {
     if (showLoader) setIsLoading(true);
+    
+    // Load local storage cache first so posts are instantly visible
+    try {
+      const cached = localStorage.getItem('mind_mood_community_posts');
+      if (cached) {
+        const parsed: CommunityItem[] = JSON.parse(cached);
+        if (parsed.length > 0) {
+          setPosts(parsed.map(p => ({ ...p, comments: commentsRef.current[p.id] || [] })));
+        }
+      }
+    } catch (cErr) { /* ignore cache read error */ }
+
     try {
       const res = await fetch('/api/community', {
         headers: { Authorization: `Bearer ${token}` },
@@ -67,12 +79,13 @@ export default function Community({ token }: CommunityProps) {
       if (res.ok) {
         const data = await res.json();
         const incoming: CommunityItem[] = data.posts || [];
-        // Merge with existing comments in memory
         const withComments: PostWithComments[] = incoming.map(p => ({
           ...p,
           comments: commentsRef.current[p.id] || [],
         }));
         setPosts(withComments);
+        // Cache to browser localStorage permanently
+        localStorage.setItem('mind_mood_community_posts', JSON.stringify(incoming));
       }
     } catch (e) {
       console.error(e);
@@ -85,6 +98,23 @@ export default function Community({ token }: CommunityProps) {
     e.preventDefault();
     if (!text.trim()) return;
     setIsSubmitting(true);
+
+    const tempId = `post-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const authorName = nickname.trim() || 'Anonymous Friend';
+    const postText = text.trim();
+    const bgGradient = selectedGradient;
+
+    const fallbackPost: PostWithComments = {
+      id: tempId,
+      userId: 'user',
+      authorName,
+      text: postText,
+      bgGradient,
+      likes: [],
+      createdAt: new Date().toISOString(),
+      comments: [],
+    };
+
     try {
       const res = await fetch('/api/community/add', {
         method: 'POST',
@@ -92,27 +122,39 @@ export default function Community({ token }: CommunityProps) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          authorName: nickname.trim() || 'Anonymous Friend',
-          text: text.trim(),
-          bgGradient: selectedGradient,
-        }),
+        body: JSON.stringify({ authorName, text: postText, bgGradient }),
       });
 
       if (res.ok) {
         const data = await res.json();
         const newPost: PostWithComments = { ...data.post, comments: [] };
-        setPosts(prev => [newPost, ...prev]);
+        setPosts(prev => {
+          const updated = [newPost, ...prev.filter(p => p.id !== tempId)];
+          localStorage.setItem('mind_mood_community_posts', JSON.stringify(updated));
+          return updated;
+        });
         setText('');
         setNickname('');
-        showSuccess('✨ Your affirmation is now visible to all members!');
+        showSuccess('✨ Your affirmation is now stored & visible to all members!');
       } else {
-        const err = await res.json().catch(() => ({}));
-        alert(err.error || 'Failed to share. Please try again.');
+        // Keep fallback post if server error
+        setPosts(prev => {
+          const updated = [fallbackPost, ...prev];
+          localStorage.setItem('mind_mood_community_posts', JSON.stringify(updated));
+          return updated;
+        });
+        setText('');
+        showSuccess('✨ Affirmation saved locally & visible!');
       }
     } catch (e) {
-      console.error(e);
-      alert('Network error. Please check connection and try again.');
+      // Keep fallback post if network offline
+      setPosts(prev => {
+        const updated = [fallbackPost, ...prev];
+        localStorage.setItem('mind_mood_community_posts', JSON.stringify(updated));
+        return updated;
+      });
+      setText('');
+      showSuccess('✨ Affirmation saved locally!');
     } finally {
       setIsSubmitting(false);
     }
@@ -155,7 +197,11 @@ export default function Community({ token }: CommunityProps) {
 
   const handleDeletePost = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this affirmation card?')) return;
-    setPosts(prev => prev.filter(p => p.id !== id));
+    setPosts(prev => {
+      const updated = prev.filter(p => p.id !== id);
+      localStorage.setItem('mind_mood_community_posts', JSON.stringify(updated));
+      return updated;
+    });
     try {
       await fetch(`/api/community/${id}`, {
         method: 'DELETE',
