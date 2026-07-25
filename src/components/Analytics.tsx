@@ -225,6 +225,70 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
     },
   ];
 
+  const getAverageScore = (): number => {
+    if (history.length === 0) return 0;
+    const total = history.reduce((sum, m) => sum + (MOOD_SCORE[m.moodType] || 3), 0);
+    return Number((total / history.length).toFixed(1));
+  };
+
+  const getMentalStage = () => {
+    const avg = getAverageScore();
+    if (history.length === 0) {
+      return {
+        stage: 'Stage 0 — Baseline Evaluation',
+        name: 'Awaiting Mood Logs',
+        score: '—',
+        description: 'Log your mood on the Dashboard to calculate your current mental health stage and average score.',
+        badgeClass: 'bg-slate-100 text-slate-600 border-slate-200',
+        progressBar: 'w-0 bg-slate-300',
+        color: 'slate',
+      };
+    }
+    if (avg >= 4.0) {
+      return {
+        stage: 'Stage 4 — Thriving & Flourishing 🌟',
+        name: 'High Emotional Positivity & Mental Resilience',
+        score: `${avg} / 5.0`,
+        description: 'Your mood trajectory reflects high positivity, emotional stability, and strong coping mechanisms.',
+        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        progressBar: 'w-full bg-emerald-500',
+        color: 'emerald',
+      };
+    } else if (avg >= 3.0) {
+      return {
+        stage: 'Stage 3 — Stable & Balanced ⚖️',
+        name: 'Equilibrium & Healthy Self-Awareness',
+        score: `${avg} / 5.0`,
+        description: 'Your emotional state is steady. Regular mindfulness and journaling sustain your current balance.',
+        badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        progressBar: 'w-3/4 bg-indigo-500',
+        color: 'indigo',
+      };
+    } else if (avg >= 2.0) {
+      return {
+        stage: 'Stage 2 — Processing & Healing 🌿',
+        name: 'Active Self-Reflection & Recovery',
+        score: `${avg} / 5.0`,
+        description: 'You are working through feelings of tiredness or tension. Daily 4-4-4 Box Breathing will help restore energy.',
+        badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+        progressBar: 'w-1/2 bg-amber-500',
+        color: 'amber',
+      };
+    } else {
+      return {
+        stage: 'Stage 1 — Vulnerable & Needs Support 🫂',
+        name: 'High Stress or Exhaustion',
+        score: `${avg} / 5.0`,
+        description: 'You are experiencing elevated emotional strain. We encourage chatting with our AI therapist companion.',
+        badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+        progressBar: 'w-1/4 bg-rose-500',
+        color: 'rose',
+      };
+    }
+  };
+
+  const stage = getMentalStage();
+
   return (
     <div className="space-y-8 animate-fade-in" id="analytics-tab">
 
@@ -238,7 +302,7 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
             </span>
             <h1 className="font-sans font-extrabold text-2xl mt-3 tracking-tight">Analytics & Insights 📊</h1>
             <p className="text-slate-300 text-xs mt-1 leading-relaxed">
-              Visual trends, emotion breakdowns, and AI-powered weekly wellness reports based on your logged moods.
+              User stage analysis, average score evaluation, visual trend charts, and AI-powered weekly wellness reports.
             </p>
           </div>
           <button
@@ -248,6 +312,47 @@ export default function Analytics({ token, onNavigate }: AnalyticsProps) {
           >
             <RefreshCw className="w-4 h-4" />
           </button>
+        </div>
+      </div>
+
+      {/* User Mental Health Stage & Average Score Card */}
+      <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-xs space-y-4" id="user-mental-stage-card">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block mb-1">
+              Personalized Stage Analysis
+            </span>
+            <h2 className="font-sans font-extrabold text-slate-800 text-lg flex items-center gap-2">
+              <Brain className="w-5 h-5 text-violet-600" />
+              {stage.stage}
+            </h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <span className="text-[10px] font-mono text-slate-400 uppercase block">Average Score</span>
+              <span className="font-sans font-black text-xl text-violet-700">{stage.score}</span>
+            </div>
+            <span className={`px-3 py-1.5 rounded-full text-xs font-sans font-bold border ${stage.badgeClass}`}>
+              {stage.name}
+            </span>
+          </div>
+        </div>
+
+        <p className="text-xs font-sans text-slate-600 leading-relaxed">
+          {stage.description}
+        </p>
+
+        {/* Stage Progress Bar */}
+        <div className="space-y-1.5 pt-2">
+          <div className="flex justify-between text-[10px] font-mono text-slate-400">
+            <span>Stage 1 (Vulnerable)</span>
+            <span>Stage 2 (Healing)</span>
+            <span>Stage 3 (Stable)</span>
+            <span>Stage 4 (Thriving)</span>
+          </div>
+          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className={`h-full ${stage.progressBar} transition-all duration-700`} />
+          </div>
         </div>
       </div>
 
