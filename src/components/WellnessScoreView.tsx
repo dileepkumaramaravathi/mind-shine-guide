@@ -16,12 +16,16 @@ interface WellnessScoreViewProps {
 export default function WellnessScoreView({ token, onNavigate }: WellnessScoreViewProps) {
   const [data, setData] = useState<WellnessScore | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
     fetchWellnessScore();
   }, []);
 
   const fetchWellnessScore = async () => {
+    setIsLoading(true);
+    setIsRecalculating(true);
     try {
       const res = await fetch('/api/wellness/score', {
         headers: { Authorization: `Bearer ${token}` },
@@ -29,11 +33,13 @@ export default function WellnessScoreView({ token, onNavigate }: WellnessScoreVi
       if (res.ok) {
         const payload = await res.json();
         setData(payload);
+        setLastUpdated(new Date());
       }
     } catch (e) {
       console.error(e);
     } finally {
       setIsLoading(false);
+      setIsRecalculating(false);
     }
   };
 
@@ -51,8 +57,7 @@ export default function WellnessScoreView({ token, onNavigate }: WellnessScoreVi
       <div className="p-8 bg-gradient-to-br from-indigo-900 via-[#1e1b4b] to-[#0f172a] text-white rounded-3xl relative overflow-hidden" id="wellness-intro">
         <div className="absolute top-0 right-0 w-72 h-72 bg-violet-600/25 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-10 right-20 w-48 h-48 bg-teal-500/10 rounded-full blur-2xl"></div>
-        
-        <div className="relative z-5 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="relative z-5 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-xl">
             <span className="px-3 py-1 bg-violet-600/50 border border-violet-400/30 text-white text-[10px] font-sans font-bold uppercase tracking-wider rounded-full">
               Neuro-Calm Indexing Engine
@@ -63,14 +68,25 @@ export default function WellnessScoreView({ token, onNavigate }: WellnessScoreVi
             <p className="text-slate-305 text-xs leading-relaxed">
               Our clinical scoring model measures your active mental checkin patterns, streak perseverance, emotion balances, and journal details to calculate a real-time index out of 100. Build your routines to nurture structural serenity.
             </p>
+            {lastUpdated && (
+              <span className="text-[10px] text-violet-300 font-sans">Last recalculated: {lastUpdated.toLocaleTimeString()}</span>
+            )}
           </div>
 
           <button
             onClick={fetchWellnessScore}
+            disabled={isRecalculating}
             id="refresh-wellness-btn"
-            className="px-5 py-2.5 bg-white text-indigo-900 hover:bg-slate-50 transition rounded-xl text-xs font-sans font-bold cursor-pointer shrink-0 shadow-xs"
+            className="px-5 py-2.5 bg-white text-indigo-900 hover:bg-slate-50 disabled:opacity-70 transition rounded-xl text-xs font-sans font-bold cursor-pointer shrink-0 shadow-xs flex items-center gap-2"
           >
-            Re-calculate Score
+            {isRecalculating ? (
+              <>
+                <span className="w-4 h-4 border-2 border-indigo-600/20 border-t-indigo-700 rounded-full animate-spin"></span>
+                Recalculating...
+              </>
+            ) : (
+              'Re-calculate Score ↻'
+            )}
           </button>
         </div>
       </div>

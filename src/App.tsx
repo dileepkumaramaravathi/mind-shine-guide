@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Brain, Smile, BookOpen, BarChart3, User as UserIcon, Heart, LogOut, Menu, X, Sparkles, Award, Globe, Bell, Trophy
@@ -21,6 +21,10 @@ import Notifications from './components/Notifications';
 import WellnessScoreView from './components/WellnessScoreView';
 import { Mood, MoodType, User } from './types';
 import { isSupabaseConfigured } from './lib/supabaseSync';
+
+// Theme context - export so child components can access dark mode state
+export const ThemeContext = createContext<{ isDarkMode: boolean }>({ isDarkMode: false });
+export const useTheme = () => useContext(ThemeContext);
 
 type ActiveView = 'landing' | 'login' | 'register' | 'dashboard' | 'chat' | 'journal' | 'analytics' | 'profile' | 'meditation' | 'community' | 'notifications' | 'wellness';
 
@@ -162,7 +166,18 @@ export default function App() {
   };
 
   const handleToggleTheme = () => {
-    setIsDarkMode((prev) => !prev);
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      // Apply dark class to root so CSS cascade covers the whole page
+      if (next) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+      return next;
+    });
   };
 
   // Safe navigation switch
@@ -217,6 +232,7 @@ export default function App() {
   }
 
   return (
+    <ThemeContext.Provider value={{ isDarkMode }}>
     <div className={`min-h-screen font-sans flex flex-col md:flex-row transition-colors duration-300 ${
       isDarkMode ? 'bg-[#0f172a] text-[#f1f5f9]' : 'bg-[#f8fafc] text-[#1e293b]'
     }`} id="applet-body-shell">
@@ -372,7 +388,9 @@ export default function App() {
       </AnimatePresence>
 
       {/* 3. Main Workspace viewport */}
-      <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto" id="applet-view-port">
+      <main className={`flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto transition-colors duration-300 ${
+        isDarkMode ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'
+      }`} id="applet-view-port">
         {/* Header bar stating current local streak status on top of workspace */}
         <div className="pb-4 mb-4 sm:pb-6 sm:mb-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4" id="view-header">
           <div>
@@ -442,7 +460,9 @@ export default function App() {
       </main>
 
       {/* 4. Mobile Bottom Navigation bar */}
-      <nav className={`md:hidden fixed bottom-0 left-0 w-full border-t flex items-center justify-around py-2 z-30 transition-colors bg-white border-slate-150`} id="mobile-bottom-bar">
+      <nav className={`md:hidden fixed bottom-0 left-0 w-full border-t flex items-center justify-around py-2 z-30 transition-colors ${
+        isDarkMode ? 'bg-[#1e293b] border-slate-700' : 'bg-white border-slate-150'
+      }`} id="mobile-bottom-bar">
         {tabs.slice(0, 8).map((tab) => {
           const IconComp = tab.icon;
           const isSelected = view === tab.id;
@@ -452,7 +472,7 @@ export default function App() {
               onClick={() => navigateTab(tab.id)}
               id={`bn-${tab.id}`}
               className={`flex flex-col items-center p-1 rounded-xl cursor-pointer ${
-                isSelected ? 'text-violet-600 font-extrabold' : 'text-slate-400'
+                isSelected ? 'text-violet-600 font-extrabold' : isDarkMode ? 'text-slate-500' : 'text-slate-400'
               }`}
             >
               <IconComp className="w-4 h-4" />
@@ -489,5 +509,6 @@ export default function App() {
       </div>
 
     </div>
+    </ThemeContext.Provider>
   );
 }

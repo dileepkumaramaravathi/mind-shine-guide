@@ -1128,6 +1128,47 @@ app.post('/api/community/like/:id', authMiddleware, async (req: AuthenticatedReq
 });
 
 
+// Community Reply endpoint - users communicate with each other
+const communityReplies: { [postId: string]: { id: string; authorName: string; text: string; createdAt: string }[] } = {};
+
+app.post('/api/community/reply/:postId', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+  const postId = req.params.postId;
+  const { authorName, text } = req.body;
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: 'Reply text is required.' });
+  }
+  const reply = {
+    id: `reply-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    authorName: authorName || 'Anonymous Friend',
+    text: text.trim(),
+    createdAt: new Date().toISOString(),
+  };
+  if (!communityReplies[postId]) communityReplies[postId] = [];
+  communityReplies[postId].push(reply);
+
+  // Send notification to post author
+  try {
+    const post = db.getCommunityPosts().find((p: any) => p.id === postId);
+    if (post && post.userId !== req.userId) {
+      db.addNotification(
+        post.userId,
+        'New Reply in Plaza 💬',
+        `${authorName || 'Someone'} replied to your community affirmation!`,
+        'support'
+      );
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  res.json({ reply });
+});
+
+app.get('/api/community/replies/:postId', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+  const postId = req.params.postId;
+  res.json({ replies: communityReplies[postId] || [] });
+});
+
 // 2. NOTIFICATIONS MANAGEMENT ENDPOINTS
 app.get('/api/notifications', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
   try {

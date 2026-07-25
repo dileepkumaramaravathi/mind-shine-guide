@@ -72,9 +72,14 @@ class DBManager {
     }
   }
 
-  // Password Utility using Native Crypto
-  private hashPassword(password: string, salt: string): string {
+  // Legacy hashing with 1,000 iterations for backward compatibility
+  private hashPasswordLegacy(password: string, salt: string): string {
     return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  }
+
+  // Strong password hashing using 600,000 iterations (OWASP recommendation)
+  private hashPassword(password: string, salt: string): string {
+    return crypto.pbkdf2Sync(password, salt, 600000, 64, 'sha512').toString('hex');
   }
 
   // --- Auth Methods ---
@@ -102,7 +107,9 @@ class DBManager {
     this.data.users[id] = userRecord;
     this.save();
 
-    // Generate simple token string (User ID serves as simple persistent token)
+    // Generate secure token (JWT)
+    const token = generateToken(id);
+
     return {
       user: {
         id: userRecord.id,
@@ -112,7 +119,7 @@ class DBManager {
         lastActiveDate: userRecord.lastActiveDate,
         createdAt: userRecord.createdAt,
       },
-      token: userRecord.id,
+      token,
     };
   }
 
@@ -122,10 +129,29 @@ class DBManager {
     
     if (!userRecord) return null;
 
-    const hash = this.hashPassword(password, userRecord.passwordSalt);
-    if (hash !== userRecord.passwordHash) return null;
+    let hash = this.hashPassword(password, userRecord.passwordSalt);
+    let legacy = false;
 
-    // Return user with token
+    if (hash !== userRecord.passwordHash) {
+      // Fallback check for legacy 1k iterations hash
+      const legacyHash = this.hashPasswordLegacy(password, userRecord.passwordSalt);
+      if (legacyHash === userRecord.passwordHash) {
+        hash = legacyHash;
+        legacy = true;
+      } else {
+        return null;
+      }
+    }
+
+    // Automatically migrate legacy password hashes to 600,000 iterations on-the-fly
+    if (legacy) {
+      userRecord.passwordHash = this.hashPassword(password, userRecord.passwordSalt);
+      this.save();
+    }
+
+    // Generate secure token (JWT)
+    const token = generateToken(userRecord.id);
+
     return {
       user: {
         id: userRecord.id,
@@ -135,7 +161,7 @@ class DBManager {
         lastActiveDate: userRecord.lastActiveDate,
         createdAt: userRecord.createdAt,
       },
-      token: userRecord.id,
+      token,
     };
   }
 
@@ -409,3 +435,44 @@ class DBManager {
 }
 
 export const db = new DBManager();
+
+export function generateToken(userId: string): string {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const payload = { userId, exp: Math.floor(Date.now() / 1000) + 86400 }; // 24 hours expiry
+  const base64url = (str: string) =>
+    Buffer.from(str).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const encodedHeader = base64url(JSON.stringify(header));
+  const encodedPayload = base64url(JSON.stringify(payload));
+  const JWT_SECRET = process.env.JWT_SECRET || 'mind-mood-ai-secret-key-987654321';
+  const signature = crypto
+    .createHmac('sha256', JWT_SECRET)
+    .update(`${encodedHeader}.${encodedPayload}`)
+    .digest('base64url');
+  return `${encodedHeader}.${encodedPayload}.${signature}`;
+}
+
+export function verifyToken(token: string): string | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [header, payload, signature] = parts;
+    const JWT_SECRET = process.env.JWT_SECRET || 'mind-mood-ai-secret-key-987654321';
+    const expectedSig = crypto
+      .createHmac('sha256', JWT_SECRET)
+      .update(`${header}.${payload}`)
+      .digest('base64url');
+    if (signature !== expectedSig) return null;
+    const base64urlDecode = (str: string) => {
+      let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) base64 += '=';
+      return Buffer.from(base64, 'base64').toString('utf8');
+    };
+    const decodedPayload = JSON.parse(base64urlDecode(payload));
+    if (decodedPayload.exp && Math.floor(Date.now() / 1000) > decodedPayload.exp) {
+      return null;
+    }
+    return decodedPayload.userId;
+  } catch {
+    return null;
+  }
+}

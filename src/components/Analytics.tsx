@@ -5,8 +5,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { BarChart3, Sparkles, TrendingUp, Heart, Calendar, HelpCircle, Activity } from 'lucide-react';
+import { BarChart3, Sparkles, TrendingUp, Heart, Calendar, HelpCircle, Activity, FileSpreadsheet } from 'lucide-react';
 import { Mood, MoodType } from '../types';
+import * as XLSX from 'xlsx';
 
 interface AnalyticsProps {
   token: string;
@@ -61,6 +62,40 @@ export default function Analytics({ token }: AnalyticsProps) {
     } finally {
       setGeneratingReport(false);
     }
+  };
+
+  const handleDownloadExcel = () => {
+    if (history.length === 0) {
+      alert('No mood data to export yet. Log some moods first!');
+      return;
+    }
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Full mood history
+    const headers = ['Date', 'Mood Type', 'Intensity (1-5)', 'Note'];
+    const rows = history.map((m) => [
+      m.date || '',
+      m.moodType || '',
+      m.intensity || '',
+      m.note || '',
+    ]);
+    const ws1 = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws1['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 60 }];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Mood History');
+
+    // Sheet 2: Distribution summary
+    const distHeaders = ['Mood Type', 'Count', 'Percentage'];
+    const totalCnt = Object.values(counts).reduce((a, b) => a + b, 0);
+    const distRows = (Object.keys(counts) as MoodType[]).map((mtype) => [
+      mtype,
+      counts[mtype],
+      totalCnt > 0 ? `${Math.round((counts[mtype] / totalCnt) * 100)}%` : '0%',
+    ]);
+    const ws2 = XLSX.utils.aoa_to_sheet([distHeaders, ...distRows]);
+    ws2['!cols'] = [{ wch: 15 }, { wch: 10 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Mood Distribution');
+
+    XLSX.writeFile(wb, `MindMoodAI_Analytics_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   // Convert Mood history into graph datasets
@@ -316,14 +351,24 @@ export default function Analytics({ token }: AnalyticsProps) {
             </h2>
             <p className="text-xs font-sans text-slate-400">Comprehensive insights, reinforcement logs, and clinical lifestyle summaries</p>
           </div>
-          <button
-            onClick={handleGenerateReport}
-            disabled={generatingReport || history.length === 0}
-            id="generate-weekly-report-btn"
-            className="px-5 py-2.5 bg-gradient-to-tr from-violet-600 to-indigo-650 hover:opacity-95 disabled:opacity-50 text-white rounded-xl text-xs font-sans font-bold tracking-wider uppercase transition shadow-sm cursor-pointer"
-          >
-            {generatingReport ? 'Synthesizing report...' : 'Generate AI Weekly Report'}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleDownloadExcel}
+              id="download-analytics-excel-btn"
+              className="px-4 py-2 bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-sans font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Export Excel
+            </button>
+            <button
+              onClick={handleGenerateReport}
+              disabled={generatingReport || history.length === 0}
+              id="generate-weekly-report-btn"
+              className="px-5 py-2.5 bg-gradient-to-tr from-violet-600 to-indigo-650 hover:opacity-95 disabled:opacity-50 text-white rounded-xl text-xs font-sans font-bold tracking-wider uppercase transition shadow-sm cursor-pointer"
+            >
+              {generatingReport ? 'Synthesizing report...' : 'Generate AI Weekly Report'}
+            </button>
+          </div>
         </div>
 
         {report ? (

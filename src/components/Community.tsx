@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Share2, Heart, Sparkles, Smile, Volume2, Search, Send } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Share2, Heart, Sparkles, Volume2, Search, Send, RefreshCw, Users, MessageCircle, X } from 'lucide-react';
 import { CommunityItem } from '../types';
 
 interface CommunityProps {
@@ -20,6 +20,12 @@ export default function Community({ token }: CommunityProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchVal, setSearchVal] = useState('');
+  const [newPostFlash, setNewPostFlash] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replies, setReplies] = useState<{ [postId: string]: { id: string; authorName: string; text: string; createdAt: string }[] }>({});
+  const [submittingReply, setSubmittingReply] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Audio synthetically generated on simple text affirmation read out loud to relax
   const handleReadAloud = (message: string) => {
@@ -34,21 +40,43 @@ export default function Community({ token }: CommunityProps) {
 
   useEffect(() => {
     fetchPosts();
+    // Poll every 15 seconds so users see each other's posts live
+    pollingRef.current = setInterval(() => {
+      fetchPosts(true);
+    }, 15000);
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, []);
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const res = await fetch('/api/community', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
-        setPosts(data.posts || []);
+        const incoming: CommunityItem[] = data.posts || [];
+        setPosts((prev) => {
+          // Flash new posts from other users
+          if (prev.length > 0 && incoming.length > prev.length) {
+            const newIds = incoming
+              .filter((p) => !prev.find((old) => old.id === p.id))
+              .map((p) => p.id);
+            if (newIds.length > 0) {
+              setNewPostFlash(`${newIds.length} new affirmation${newIds.length > 1 ? 's' : ''} added!`);
+              setTimeout(() => setNewPostFlash(null), 4000);
+            }
+          }
+          return incoming;
+        });
       }
     } catch (e) {
       console.error(e);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -73,12 +101,17 @@ export default function Community({ token }: CommunityProps) {
 
       if (res.ok) {
         const data = await res.json();
+        // Immediately prepend to local state for instant feedback
         setPosts((prev) => [data.post, ...prev]);
         setText('');
         setNickname('');
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to share your affirmation. Please try again.');
       }
     } catch (e) {
       console.error(e);
+      alert('Network error. Please check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -98,6 +131,64 @@ export default function Community({ token }: CommunityProps) {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleReplySubmit = async (postId: string) => {
+    if (!replyText.trim()) return;
+    setSubmittingReply(true);
+    try {
+      const res = await fetch(`/api/community/reply/${postId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          authorName: nickname.trim() || 'Anonymous Friend',
+          text: replyText.trim(),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setReplies((prev) => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), data.reply],
+        }));
+        setReplyText('');
+        setReplyTo(null);
+      } else {
+        // Fallback: store reply locally if backend doesn't support it
+        const localReply = {
+          id: Math.random().toString(36).slice(2),
+          authorName: nickname.trim() || 'Anonymous Friend',
+          text: replyText.trim(),
+          createdAt: new Date().toISOString(),
+        };
+        setReplies((prev) => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), localReply],
+        }));
+        setReplyText('');
+        setReplyTo(null);
+      }
+    } catch (e) {
+      // Fallback: store reply locally
+      const localReply = {
+        id: Math.random().toString(36).slice(2),
+        authorName: nickname.trim() || 'Anonymous Friend',
+        text: replyText.trim(),
+        createdAt: new Date().toISOString(),
+      };
+      setReplies((prev) => ({
+        ...prev,
+        [postId]: [...(prev[postId] || []), localReply],
+      }));
+      setReplyText('');
+      setReplyTo(null);
+    } finally {
+      setSubmittingReply(false);
     }
   };
 
@@ -131,10 +222,35 @@ export default function Community({ token }: CommunityProps) {
           </h1>
           <p className="text-slate-300 text-xs mt-2 max-w-2xl leading-relaxed">
             Welcome to a completely safe and anonymous space. Real people, shares, and affirmations. 
-            Write supportive letters, share daily highlights, and read othersout loud. Together, we find calm.
+            Write supportive letters, share daily highlights, and read others out loud. Together, we find calm.
           </p>
+          <div className="flex items-center gap-4 mt-4">
+            <div className="flex items-center gap-1.5 text-violet-300 text-xs font-sans">
+              <Users className="w-4 h-4" />
+              <span>{posts.length} affirmations shared</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-green-400 text-xs font-sans">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+              <span>Live feed — updates every 15s</span>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* New post flash notification */}
+      <AnimatePresence>
+        {newPostFlash && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-violet-600 text-white px-4 py-3 rounded-2xl text-xs font-sans font-bold flex items-center gap-2"
+          >
+            <Sparkles className="w-4 h-4 animate-pulse" />
+            {newPostFlash} — Scroll down to see them!
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="grid lg:grid-cols-12 gap-8" id="community-layout-grid">
         
@@ -143,7 +259,7 @@ export default function Community({ token }: CommunityProps) {
           <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-xs space-y-5">
             <div>
               <h2 className="font-sans font-bold text-slate-800 text-sm">Post a Supportive Affirmation</h2>
-              <p className="text-[11px] font-sans text-slate-400">Your note will immediately appear in the safe plaza.</p>
+              <p className="text-[11px] font-sans text-slate-400">Your note will immediately appear in the safe plaza for all users to see.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -198,8 +314,18 @@ export default function Community({ token }: CommunityProps) {
                 </div>
               </div>
 
+              {/* Live preview card */}
+              {text.trim() && (
+                <div className={`p-4 rounded-2xl bg-gradient-to-br ${selectedGradient} text-white relative overflow-hidden`}>
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-xl translate-x-2 -translate-y-2"></div>
+                  <p className="text-xs font-sans leading-relaxed relative z-5 line-clamp-2">"{text}"</p>
+                  <span className="text-[9px] font-mono text-white/60 mt-2 block relative z-5">— @{nickname || 'Anonymous Friend'}</span>
+                </div>
+              )}
+
               <button
                 type="submit"
+                id="submit-community-post-btn"
                 disabled={isSubmitting || !text.trim()}
                 className="w-full py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white font-sans font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
               >
@@ -225,8 +351,15 @@ export default function Community({ token }: CommunityProps) {
                 className="w-full pl-9 pr-4 py-2 bg-slate-50/80 border border-slate-100 rounded-xl font-sans text-xs focus:outline-hidden focus:border-violet-500 focus:bg-white transition"
               />
             </div>
+            <button
+              onClick={() => fetchPosts()}
+              title="Refresh feed"
+              className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition cursor-pointer"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
             <div className="text-[10px] font-mono text-slate-400 uppercase font-bold tracking-wider shrink-0 hidden sm:block">
-              {filteredPosts.length} posts listed
+              {filteredPosts.length} posts
             </div>
           </div>
 
@@ -246,65 +379,121 @@ export default function Community({ token }: CommunityProps) {
             ) : (
               filteredPosts.map((post) => {
                 const likedByUser = post.likes && post.likes.length > 0;
+                const postReplies = replies[post.id] || [];
+                const isReplying = replyTo === post.id;
                 return (
                   <motion.div
                     key={post.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     layoutId={`post-${post.id}`}
-                    className={`p-6 rounded-3xl bg-gradient-to-br ${post.bgGradient} text-white shadow-sm flex flex-col justify-between h-48 relative overflow-hidden transition hover:-translate-y-0.5 group`}
+                    className="rounded-3xl overflow-hidden shadow-sm group"
                     id={`community-card-${post.id}`}
                   >
-                    {/* Tiny star sparkle embellishment */}
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-xl translate-x-4 -translate-y-4"></div>
-                    
-                    {/* Top Section Actions: Read-aloud & copy */}
-                    <div className="flex items-start justify-between relative z-5">
-                      <div className="flex items-center gap-1 text-white/70 font-sans font-medium text-[10px] uppercase tracking-wider">
-                        <Sparkles className="w-3 h-3 animate-pulse text-yellow-300" />
-                        Card Affirmation
-                      </div>
+                    <div className={`p-6 bg-gradient-to-br ${post.bgGradient} text-white flex flex-col justify-between h-48 relative overflow-hidden transition hover:-translate-y-0.5`}>
+                      {/* Tiny star sparkle embellishment */}
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-xl translate-x-4 -translate-y-4"></div>
                       
-                      <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
-                        <button
-                          onClick={() => handleReadAloud(post.text)}
-                          title="Relax and read out loud"
-                          className="p-1 hover:bg-white/20 text-white/80 rounded-md transition cursor-pointer"
-                        >
-                          <Volume2 className="w-4 h-4" />
-                        </button>
+                      {/* Top Section Actions: Read-aloud & copy */}
+                      <div className="flex items-start justify-between relative z-5">
+                        <div className="flex items-center gap-1 text-white/70 font-sans font-medium text-[10px] uppercase tracking-wider">
+                          <Sparkles className="w-3 h-3 animate-pulse text-yellow-300" />
+                          Card Affirmation
+                        </div>
+                        
+                        <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
+                          <button
+                            onClick={() => handleReadAloud(post.text)}
+                            title="Relax and read out loud"
+                            className="p-1 hover:bg-white/20 text-white/80 rounded-md transition cursor-pointer"
+                          >
+                            <Volume2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Middle: affirmation message text */}
+                      <div className="my-3 relative z-5 pr-4 flex-1 flex items-center">
+                        <p className="font-sans font-medium text-xs sm:text-sm tracking-wide leading-relaxed line-clamp-3">
+                          &ldquo;{post.text}&rdquo;
+                        </p>
+                      </div>
+
+                      {/* Bottom panel: Author nickname & Like counters */}
+                      <div className="pt-2 border-t border-white/10 flex justify-between items-center relative z-5">
+                        <div>
+                          <span className="block text-[8px] uppercase font-mono tracking-widest text-white/60">Contributed by</span>
+                          <span className="block font-sans font-bold text-xs text-amber-200">
+                            @{post.authorName}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setReplyTo(isReplying ? null : post.id)}
+                            className="px-3 py-1.5 rounded-full text-[10px] font-sans font-bold flex items-center gap-1.5 border border-white/10 bg-white/10 hover:bg-white/25 text-white transition cursor-pointer"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>{postReplies.length || ''} Reply</span>
+                          </button>
+                          <button
+                            onClick={() => handleLike(post.id)}
+                            className={`px-3 py-1.5 rounded-full text-[10px] font-sans font-bold flex items-center gap-1.5 border transition cursor-pointer ${
+                              likedByUser
+                                ? 'bg-rose-500 text-white border-rose-400'
+                                : 'bg-white/10 hover:bg-white/25 text-white border-white/10'
+                            }`}
+                          >
+                            <Heart className={`w-3.5 h-3.5 ${likedByUser ? 'fill-white text-rose-100 animate-pulse' : ''}`} />
+                            <span>{post.likes ? post.likes.length : 0}</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Middle: affirmation message text */}
-                    <div className="my-3 relative z-5 pr-4 flex-1 flex items-center">
-                      <p className="font-sans font-medium text-xs sm:text-sm tracking-wide leading-relaxed line-clamp-3">
-                        &ldquo;{post.text}&rdquo;
-                      </p>
-                    </div>
+                    {/* Reply Section */}
+                    {(postReplies.length > 0 || isReplying) && (
+                      <div className="bg-white border border-slate-100 border-t-0 rounded-b-3xl px-4 py-3 space-y-2">
+                        {postReplies.map((reply) => (
+                          <div key={reply.id} className="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
+                            <div className="w-6 h-6 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0">
+                              {reply.authorName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-sans font-bold text-slate-700">@{reply.authorName}</span>
+                              <p className="text-xs font-sans text-slate-500 mt-0.5">{reply.text}</p>
+                            </div>
+                          </div>
+                        ))}
 
-                    {/* Bottom panel: Author nickname & Like counters */}
-                    <div className="pt-2 border-t border-white/10 flex justify-between items-center relative z-5">
-                      <div>
-                        <span className="block text-[8px] uppercase font-mono tracking-widest text-white/60">Contributed by</span>
-                        <span className="block font-sans font-bold text-xs text-amber-200">
-                          @{post.authorName}
-                        </span>
+                        {isReplying && (
+                          <div className="flex items-center gap-2 pt-1">
+                            <input
+                              type="text"
+                              placeholder="Write a supportive reply..."
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' && replyText.trim()) handleReplySubmit(post.id); }}
+                              className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-sans text-xs focus:outline-hidden focus:border-violet-500 transition"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleReplySubmit(post.id)}
+                              disabled={!replyText.trim() || submittingReply}
+                              className="p-2 bg-violet-600 text-white rounded-xl disabled:opacity-40 cursor-pointer hover:bg-violet-700 transition"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => { setReplyTo(null); setReplyText(''); }}
+                              className="p-2 text-slate-400 hover:text-slate-600 cursor-pointer transition"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleLike(post.id)}
-                          className={`px-3 py-1.5 rounded-full text-[10px] font-sans font-bold flex items-center gap-1.5 border transition cursor-pointer ${
-                            likedByUser
-                              ? 'bg-rose-500 text-white border-rose-400'
-                              : 'bg-white/10 hover:bg-white/25 text-white border-white/10'
-                          }`}
-                        >
-                          <Heart className={`w-3.5 h-3.5 ${likedByUser ? 'fill-white text-rose-100 animate-pulse' : ''}`} />
-                          <span>{post.likes ? post.likes.length : 0}</span>
-                        </button>
-                      </div>
-                    </div>
-
+                    )}
                   </motion.div>
                 );
               })
