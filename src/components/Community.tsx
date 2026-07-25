@@ -119,6 +119,20 @@ export default function Community({ token }: CommunityProps) {
   };
 
   const handleLike = async (id: string) => {
+    // Optimistic UI update first - never crash on this action
+    setPosts(prev =>
+      prev.map(p => {
+        if (p.id !== id) return p;
+        const liked = (p.likes || []).includes('current-user');
+        return {
+          ...p,
+          likes: liked
+            ? (p.likes || []).filter(l => l !== 'current-user')
+            : [...(p.likes || []), 'current-user'],
+        };
+      })
+    );
+
     try {
       const res = await fetch(`/api/community/like/${id}`, {
         method: 'POST',
@@ -126,12 +140,17 @@ export default function Community({ token }: CommunityProps) {
       });
       if (res.ok) {
         const data = await res.json();
-        setPosts(prev =>
-          prev.map(p => (p.id === id ? { ...p, likes: data.post.likes } : p))
-        );
+        // Accept either data.post.likes or data.likes
+        const updatedLikes = data.likes || data.post?.likes || null;
+        if (updatedLikes !== null) {
+          setPosts(prev =>
+            prev.map(p => (p.id === id ? { ...p, likes: updatedLikes } : p))
+          );
+        }
       }
+      // If not ok, the optimistic update stays - that's fine
     } catch (e) {
-      console.error(e);
+      console.warn('Like request failed (optimistic update kept):', e);
     }
   };
 

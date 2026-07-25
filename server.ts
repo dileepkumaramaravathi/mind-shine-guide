@@ -1104,51 +1104,55 @@ app.delete('/api/community/:id', authMiddleware, (req: AuthenticatedRequest, res
   }
 });
 
-app.post('/api/community/like/:id', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+app.post('/api/community/like/:id', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
   const postId = req.params.id;
   try {
     const post = db.toggleLikePost(req.userId!, postId);
     if (!post) {
       return res.status(404).json({ error: 'Post not found.' });
     }
-    
-    // Sync toggle like to Supabase
-    try {
-      const { data: sPost } = await supabase
-        .from('community_posts')
-        .select('likes')
-        .eq('id', postId)
-        .single();
 
-      if (sPost) {
-        const likesList = sPost.likes || [];
-        const idx = likesList.indexOf(req.userId!);
-        if (idx !== -1) {
-          likesList.splice(idx, 1);
-        } else {
-          likesList.push(req.userId!);
-        }
-        await supabase
+    // Ensure likes is always an array
+    if (!post.likes) post.likes = [];
+
+    // Async Supabase sync - non-blocking, never crashes request
+    setImmediate(async () => {
+      try {
+        const { data: sPost } = await supabase
           .from('community_posts')
-          .update({ likes: likesList })
-          .eq('id', postId);
+          .select('likes')
+          .eq('id', postId)
+          .single();
+        if (sPost) {
+          const likesList: string[] = sPost.likes || [];
+          const idx = likesList.indexOf(req.userId!);
+          if (idx !== -1) likesList.splice(idx, 1);
+          else likesList.push(req.userId!);
+          await supabase.from('community_posts').update({ likes: likesList }).eq('id', postId);
+        }
+      } catch (sErr) {
+        console.warn('Supabase like sync skipped:', sErr);
       }
-    } catch (sErr) {
-      console.warn('Supabase community like toggle failed:', sErr);
+    });
+
+    // Send notification to post author if liked by a different user
+    if (post.userId && post.userId !== req.userId && post.likes.includes(req.userId!)) {
+      try {
+        db.addNotification(
+          post.userId,
+          'Affirmation appreciated ❤️',
+          'Someone liked and felt supported by your community affirmation!',
+          'support'
+        );
+      } catch (nErr) {
+        console.warn('Notification skipped:', nErr);
+      }
     }
 
-    // Send notification to author of post if liked by another user
-    if (post.userId !== req.userId && post.likes.includes(req.userId!)) {
-      db.addNotification(
-        post.userId,
-        'Affirmation appreciated ❤️',
-        'Someone liked and felt supported by your community affirmation!',
-        'support'
-      );
-    }
-
-    res.json({ post });
+    // Always return success with the updated post
+    res.json({ post, likes: post.likes, success: true });
   } catch (err) {
+    console.error('Like toggle error:', err);
     res.status(500).json({ error: 'Failed to toggle like.' });
   }
 });

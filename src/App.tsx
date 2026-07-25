@@ -442,7 +442,7 @@ export default function App() {
           )}
           {view === 'chat' && <AIChat token={token} />}
           {view === 'journal' && <MoodJournal token={token} />}
-          {view === 'analytics' && <Analytics token={token} />}
+          {view === 'analytics' && <Analytics token={token} onNavigate={navigateTab} />}
           {view === 'meditation' && <Meditation token={token} />}
           {view === 'community' && <Community token={token} />}
           {view === 'notifications' && <Notifications token={token} />}
