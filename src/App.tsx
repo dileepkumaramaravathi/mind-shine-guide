@@ -32,6 +32,16 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [toasts, setToasts] = useState<{ id: string; title: string; message: string }[]>([]);
+  const [notifiedIds, setNotifiedIds] = useState<string[]>([]);
+
+  const showToast = (title: string, message: string) => {
+    const id = Math.random().toString();
+    setToasts((prev) => [...prev, { id, title, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4500);
+  };
 
   // Load token + user on launch
   useEffect(() => {
@@ -85,8 +95,20 @@ export default function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        const unreads = (data.notifications || []).filter((n: any) => !n.read).length;
-        setUnreadCount(unreads);
+        const list: any[] = data.notifications || [];
+        const unreads = list.filter((n: any) => !n.read);
+        setUnreadCount(unreads.length);
+
+        // Display new notifications as popup toasts if they haven't been shown in this session
+        unreads.forEach((n) => {
+          setNotifiedIds((prev) => {
+            if (!prev.includes(n.id)) {
+              showToast(n.title, n.message);
+              return [...prev, n.id];
+            }
+            return prev;
+          });
+        });
       }
     } catch (err) {
       console.error(err);
@@ -128,6 +150,12 @@ export default function App() {
           setUser(data.user); // Sync consecutive streak metrics
         }
       }
+      
+      // Sync directly to Supabase from the client side
+      const { syncMood } = await import('./lib/supabaseSync');
+      syncMood(token, moodType, intensity, note);
+      
+      showToast('Mood Tracked 📊', `Logged custom ${moodType} state (intensity ${intensity}/5).`);
     } catch (err) {
       console.error(err);
     }
@@ -435,6 +463,30 @@ export default function App() {
           );
         })}
       </nav>
+
+      {/* Toast Notification Container */}
+      <div className="fixed bottom-16 md:bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm pointer-events-none" id="toast-portal">
+        <AnimatePresence>
+          {toasts.map((t) => (
+            <motion.div
+              key={t.id}
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.2 } }}
+              className="pointer-events-auto p-4 rounded-2xl bg-slate-900/95 text-white shadow-xl flex gap-3 border border-slate-700/50 backdrop-blur-md"
+              id={`toast-item-${t.id}`}
+            >
+              <div className="p-2 bg-violet-600 rounded-xl text-white h-fit shrink-0">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h4 className="font-sans font-bold text-xs text-white">{t.title}</h4>
+                <p className="font-sans text-[11px] text-slate-300 mt-1 leading-normal">{t.message}</p>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
 
     </div>
   );
