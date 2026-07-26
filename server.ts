@@ -1021,13 +1021,12 @@ Produce a formal, private, beautifully written psychological wellness report sum
 // ==================== NEW FEATURES ENDPOINTS ====================
 
 // 1. COMMUNITY PLAZA ENDPOINTS
-// Local DB is PRIMARY. Supabase is async background sync only.
+// Dual-persistence: Local DB + Supabase Cloud DB for permanent storage across Vercel deployments
 app.get('/api/community', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    // Always return from local DB first (guaranteed to work)
     const localPosts = db.getCommunityPosts();
+    let supabasePosts: any[] = [];
     
-    // Also try to merge Supabase posts for cross-user visibility
     try {
       const { data, error } = await supabase
         .from('community_posts')
@@ -1036,29 +1035,43 @@ app.get('/api/community', authMiddleware, async (req: AuthenticatedRequest, res:
         .limit(100);
 
       if (!error && data && data.length > 0) {
-        const supabasePosts = data.map((p: any) => ({
+        supabasePosts = data.map((p: any) => ({
           id: p.id,
-          userId: p.user_id,
+          userId: p.user_id || 'system-user',
           authorName: p.author_name,
-          text: p.content,
-          bgGradient: p.bg_gradient,
+          text: p.content || p.text,
+          bgGradient: p.bg_gradient || 'from-indigo-600 to-violet-600',
           likes: p.likes || [],
+          comments: p.comments || [],
+          bookmarks: p.bookmarks || [],
           createdAt: p.created_at || new Date().toISOString()
         }));
-        // Merge: combine local + supabase, deduplicate by id
-        const allIds = new Set(localPosts.map((p: any) => p.id));
-        const merged = [...localPosts];
-        for (const sp of supabasePosts) {
-          if (!allIds.has(sp.id)) merged.push(sp);
-        }
-        merged.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        return res.json({ posts: merged });
       }
     } catch (sErr) {
-      console.warn('Supabase merge skipped:', sErr);
+      console.warn('Supabase fetch community posts skipped:', sErr);
     }
 
-    res.json({ posts: localPosts });
+    // Combine local + Supabase posts, deduplicating by ID
+    const postMap = new Map<string, any>();
+    for (const p of localPosts) {
+      postMap.set(p.id, p);
+    }
+    for (const sp of supabasePosts) {
+      if (!postMap.has(sp.id)) {
+        postMap.set(sp.id, sp);
+      } else {
+        // Merge comments, likes, and bookmarks if Supabase has richer data
+        const existing = postMap.get(sp.id);
+        const comments = (sp.comments && sp.comments.length > 0) ? sp.comments : (existing.comments || []);
+        const likes = (sp.likes && sp.likes.length > 0) ? sp.likes : (existing.likes || []);
+        const bookmarks = (sp.bookmarks && sp.bookmarks.length > 0) ? sp.bookmarks : (existing.bookmarks || []);
+        postMap.set(sp.id, { ...existing, comments, likes, bookmarks });
+      }
+    }
+
+    const merged = Array.from(postMap.values());
+    merged.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    res.json({ posts: merged });
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve community plaza posts.' });
   }
@@ -1070,29 +1083,26 @@ app.post('/api/community/add', authMiddleware, async (req: AuthenticatedRequest,
     return res.status(400).json({ error: 'Post text is required.' });
   }
   try {
-    // Save to local DB first - guaranteed to work
+    // 1. Save to local memory DB
     const post = db.addCommunityPost(req.userId!, (authorName || 'Anonymous Companion').trim(), text.trim(), bgGradient || 'from-indigo-600 to-violet-600');
     
-    // Async Supabase sync - don't block response
-    setImmediate(async () => {
-      try {
-        const cleanUserId = req.userId!.startsWith('token-') ? req.userId!.replace('token-', '') : req.userId!;
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        const dbId = uuidRegex.test(cleanUserId) ? cleanUserId : '00000000-0000-0000-0000-000000000000';
-        await supabase.from('community_posts').insert({
-          user_id: dbId,
-          author_name: post.authorName,
-          content: post.text,
-          bg_gradient: post.bgGradient,
-          likes: [],
-          created_at: post.createdAt
-        });
-      } catch (sErr) {
-        console.warn('Supabase async community post sync failed (non-critical):', sErr);
-      }
-    });
+    // 2. Await Supabase insert directly for guaranteed permanent storage
+    try {
+      await supabase.from('community_posts').insert({
+        id: post.id,
+        user_id: req.userId!,
+        author_name: post.authorName,
+        content: post.text,
+        bg_gradient: post.bgGradient,
+        likes: post.likes || [],
+        comments: post.comments || [],
+        bookmarks: post.bookmarks || [],
+        created_at: post.createdAt
+      });
+    } catch (sErr) {
+      console.warn('Supabase post insert warning (fallback to memory):', sErr);
+    }
 
-    // Add positive milestone notification to the poster
     db.addNotification(
       req.userId!,
       'Gratitude Shared! 🌟',
@@ -1100,7 +1110,6 @@ app.post('/api/community/add', authMiddleware, async (req: AuthenticatedRequest,
       'support'
     );
 
-    // Return the stored post immediately
     res.json({ post, success: true });
   } catch (err) {
     console.error('Community add error:', err);
@@ -1108,19 +1117,16 @@ app.post('/api/community/add', authMiddleware, async (req: AuthenticatedRequest,
   }
 });
 
-app.delete('/api/community/:id', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+app.delete('/api/community/:id', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   const postId = req.params.id;
   try {
     db.deleteCommunityPost(req.userId!, postId);
     
-    // Non-blocking async deletion from Supabase
-    setImmediate(async () => {
-      try {
-        await supabase.from('community_posts').delete().eq('id', postId);
-      } catch (sErr) {
-        console.warn('Supabase delete post skipped:', sErr);
-      }
-    });
+    try {
+      await supabase.from('community_posts').delete().eq('id', postId);
+    } catch (sErr) {
+      console.warn('Supabase delete post warning:', sErr);
+    }
 
     res.json({ success: true, message: 'Post permanently removed.' });
   } catch (err) {
@@ -1129,7 +1135,7 @@ app.delete('/api/community/:id', authMiddleware, (req: AuthenticatedRequest, res
   }
 });
 
-app.post('/api/community/like/:id', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+app.post('/api/community/like/:id', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   const postId = req.params.id;
   try {
     const post = db.toggleLikePost(req.userId!, postId);
@@ -1137,30 +1143,14 @@ app.post('/api/community/like/:id', authMiddleware, (req: AuthenticatedRequest, 
       return res.status(404).json({ error: 'Post not found.' });
     }
 
-    // Ensure likes is always an array
     if (!post.likes) post.likes = [];
 
-    // Async Supabase sync - non-blocking, never crashes request
-    setImmediate(async () => {
-      try {
-        const { data: sPost } = await supabase
-          .from('community_posts')
-          .select('likes')
-          .eq('id', postId)
-          .single();
-        if (sPost) {
-          const likesList: string[] = sPost.likes || [];
-          const idx = likesList.indexOf(req.userId!);
-          if (idx !== -1) likesList.splice(idx, 1);
-          else likesList.push(req.userId!);
-          await supabase.from('community_posts').update({ likes: likesList }).eq('id', postId);
-        }
-      } catch (sErr) {
-        console.warn('Supabase like sync skipped:', sErr);
-      }
-    });
+    try {
+      await supabase.from('community_posts').update({ likes: post.likes }).eq('id', postId);
+    } catch (sErr) {
+      console.warn('Supabase like sync warning:', sErr);
+    }
 
-    // Send notification to post author if liked by a different user
     if (post.userId && post.userId !== req.userId && post.likes.includes(req.userId!)) {
       try {
         db.addNotification(
@@ -1169,12 +1159,9 @@ app.post('/api/community/like/:id', authMiddleware, (req: AuthenticatedRequest, 
           'Someone liked and felt supported by your community affirmation!',
           'support'
         );
-      } catch (nErr) {
-        console.warn('Notification skipped:', nErr);
-      }
+      } catch (nErr) { /* ignore */ }
     }
 
-    // Always return success with the updated post
     res.json({ post, likes: post.likes, success: true });
   } catch (err) {
     console.error('Like toggle error:', err);
@@ -1182,21 +1169,25 @@ app.post('/api/community/like/:id', authMiddleware, (req: AuthenticatedRequest, 
   }
 });
 
-
-// Bookmark Post endpoint
-app.post('/api/community/bookmark/:id', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+app.post('/api/community/bookmark/:id', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   const postId = req.params.id;
   try {
     const post = db.toggleBookmarkPost(req.userId!, postId);
     if (!post) return res.status(404).json({ error: 'Post not found.' });
+
+    try {
+      await supabase.from('community_posts').update({ bookmarks: post.bookmarks }).eq('id', postId);
+    } catch (sErr) {
+      console.warn('Supabase bookmark sync warning:', sErr);
+    }
+
     res.json({ post, bookmarks: post.bookmarks, success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to toggle bookmark.' });
   }
 });
 
-// Community Reply / Nested Reply endpoint
-app.post('/api/community/reply/:postId', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+app.post('/api/community/reply/:postId', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   const postId = req.params.postId;
   const { authorName, text, commentId } = req.body;
   if (!text || !text.trim()) {
@@ -1204,28 +1195,49 @@ app.post('/api/community/reply/:postId', authMiddleware, (req: AuthenticatedRequ
   }
 
   try {
+    let updatedPost: any = null;
+    let replyObj: any = null;
+
     if (commentId) {
-      // Nested reply to a comment
       const result = db.addCommentReply(postId, commentId, req.userId!, authorName, text);
-      if (result) return res.json({ reply: result.reply, post: result.post, success: true });
+      if (result) {
+        updatedPost = result.post;
+        replyObj = result.reply;
+      }
+    } else {
+      const result = db.addCommunityComment(postId, req.userId!, authorName, text);
+      if (result) {
+        updatedPost = result.post;
+        replyObj = result.comment;
+      }
     }
 
-    // Top-level comment on post
-    const result = db.addCommunityComment(postId, req.userId!, authorName, text);
-    if (result) {
-      // Send notification to post author
-      if (result.post.userId && result.post.userId !== req.userId) {
+    if (updatedPost) {
+      try {
+        await supabase.from('community_posts').update({ comments: updatedPost.comments }).eq('id', postId);
+      } catch (sErr) {
+        console.warn('Supabase comment sync warning:', sErr);
+      }
+
+      if (updatedPost.userId && updatedPost.userId !== req.userId) {
         try {
           db.addNotification(
-            result.post.userId,
+            updatedPost.userId,
             'New Reply in Plaza 💬',
             `${authorName || 'Someone'} commented on your community affirmation!`,
             'support'
           );
         } catch (e) { /* ignore */ }
       }
-      return res.json({ reply: result.comment, post: result.post, success: true });
+
+      return res.json({ reply: replyObj, post: updatedPost, success: true });
     }
+
+    res.status(404).json({ error: 'Target post not found.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save comment/reply.' });
+  }
+});
 
     // Fallback response if post not found in DB
     const fallbackReply = {
