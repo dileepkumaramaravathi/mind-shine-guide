@@ -1239,21 +1239,6 @@ app.post('/api/community/reply/:postId', authMiddleware, async (req: Authenticat
   }
 });
 
-    // Fallback response if post not found in DB
-    const fallbackReply = {
-      id: `reply-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      userId: req.userId!,
-      authorName: authorName || 'Anonymous Friend',
-      text: text.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    res.json({ reply: fallbackReply, success: true });
-  } catch (err) {
-    console.error('Community reply error:', err);
-    res.status(500).json({ error: 'Failed to add reply.' });
-  }
-});
-
 // Public User Profile Stats endpoint
 app.get('/api/community/user-profile/:authorName', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
   const authorName = req.params.authorName;
