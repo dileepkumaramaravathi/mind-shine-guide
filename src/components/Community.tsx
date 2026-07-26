@@ -185,15 +185,17 @@ export default function Community({ token }: CommunityProps) {
   };
 
   const handleLike = async (id: string) => {
-    setPosts(prev =>
-      prev.map(p => {
+    setPosts(prev => {
+      const updated = prev.map(p => {
         if (p.id !== id) return p;
         const likesList = p.likes || [];
-        const isLiked = likesList.includes('current-user');
-        const nextLikes = isLiked ? likesList.filter(l => l !== 'current-user') : [...likesList, 'current-user'];
+        const isLiked = likesList.length > 0;
+        const nextLikes = isLiked ? [] : ['user-liked'];
         return { ...p, likes: nextLikes };
-      })
-    );
+      });
+      localStorage.setItem('mind_mood_community_posts', JSON.stringify(updated));
+      return updated;
+    });
 
     try {
       const res = await fetch(`/api/community/like/${id}`, {
@@ -204,7 +206,11 @@ export default function Community({ token }: CommunityProps) {
         const data = await res.json();
         const updatedLikes = data.likes || data.post?.likes;
         if (updatedLikes) {
-          setPosts(prev => prev.map(p => (p.id === id ? { ...p, likes: updatedLikes } : p)));
+          setPosts(prev => {
+            const updated = prev.map(p => (p.id === id ? { ...p, likes: updatedLikes } : p));
+            localStorage.setItem('mind_mood_community_posts', JSON.stringify(updated));
+            return updated;
+          });
         }
       }
     } catch (e) {
@@ -213,15 +219,17 @@ export default function Community({ token }: CommunityProps) {
   };
 
   const handleBookmark = async (id: string) => {
-    setPosts(prev =>
-      prev.map(p => {
+    setPosts(prev => {
+      const updated = prev.map(p => {
         if (p.id !== id) return p;
         const bList = p.bookmarks || [];
-        const isBookmarked = bList.includes('current-user');
-        const nextBookmarks = isBookmarked ? bList.filter(b => b !== 'current-user') : [...bList, 'current-user'];
+        const isBookmarked = bList.length > 0;
+        const nextBookmarks = isBookmarked ? [] : ['user-bookmarked'];
         return { ...p, bookmarks: nextBookmarks };
-      })
-    );
+      });
+      localStorage.setItem('mind_mood_community_posts', JSON.stringify(updated));
+      return updated;
+    });
 
     try {
       const res = await fetch(`/api/community/bookmark/${id}`, {
@@ -232,7 +240,11 @@ export default function Community({ token }: CommunityProps) {
         const data = await res.json();
         const updatedBookmarks = data.bookmarks || data.post?.bookmarks;
         if (updatedBookmarks) {
-          setPosts(prev => prev.map(p => (p.id === id ? { ...p, bookmarks: updatedBookmarks } : p)));
+          setPosts(prev => {
+            const updated = prev.map(p => (p.id === id ? { ...p, bookmarks: updatedBookmarks } : p));
+            localStorage.setItem('mind_mood_community_posts', JSON.stringify(updated));
+            return updated;
+          });
         }
       }
     } catch (e) {
