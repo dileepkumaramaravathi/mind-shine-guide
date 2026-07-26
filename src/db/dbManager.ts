@@ -44,10 +44,13 @@ class DBManager {
         const contents = fs.readFileSync(DB_FILE, 'utf-8');
         this.data = JSON.parse(contents);
         
-        // Ensure new features arrays exist to prevent runtime errors with older assets
-        if (!this.data.community) this.data.community = [];
+        // Ensure new features arrays exist and seed community posts if empty
+        if (!this.data.community || this.data.community.length === 0) {
+          this.seedCommunityPosts();
+        }
         if (!this.data.notifications) this.data.notifications = [];
       } else {
+        this.seedCommunityPosts();
         this.save();
       }
     } catch (e) {
@@ -60,7 +63,72 @@ class DBManager {
         community: [],
         notifications: [],
       };
+      this.seedCommunityPosts();
     }
+  }
+
+  private seedCommunityPosts() {
+    this.data.community = [
+      {
+        id: 'seed-post-1',
+        userId: 'system-user-1',
+        authorName: 'PeacefulSoul',
+        text: 'To whoever is reading this — you are capable of extraordinary healing. Take it one breath at a time! 🌟',
+        bgGradient: 'from-indigo-600 to-violet-600',
+        likes: ['u1', 'u2', 'u3'],
+        bookmarks: [],
+        createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+        comments: [
+          {
+            id: 'c1',
+            userId: 'system-user-2',
+            authorName: 'KindHeart',
+            text: 'Thank you for this beautiful reminder! ❤️',
+            createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+            replies: [
+              {
+                id: 'r1',
+                userId: 'system-user-1',
+                authorName: 'PeacefulSoul',
+                text: 'Sending you warmth and light! 🌸',
+                createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'seed-post-2',
+        userId: 'system-user-3',
+        authorName: 'AuraGuide',
+        text: 'Remember that your feelings are valid. Giving yourself permission to rest is the highest form of self-love. 🌿',
+        bgGradient: 'from-emerald-500 to-teal-600',
+        likes: ['u1', 'u4'],
+        bookmarks: [],
+        createdAt: new Date(Date.now() - 3600000 * 8).toISOString(),
+        comments: [
+          {
+            id: 'c2',
+            userId: 'system-user-4',
+            authorName: 'SereneMind',
+            text: 'I really needed to read this today. Taking a break now.',
+            createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+          }
+        ]
+      },
+      {
+        id: 'seed-post-3',
+        userId: 'system-user-5',
+        authorName: 'SunShineVibes',
+        text: 'Small progress is still progress. Celebrate every step you take on your mental wellness journey! ☀️',
+        bgGradient: 'from-rose-500 to-orange-500',
+        likes: ['u2', 'u3', 'u5'],
+        bookmarks: [],
+        createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
+        comments: []
+      }
+    ];
+    this.save();
   }
 
 
