@@ -268,9 +268,11 @@ export default function Community({ token }: CommunityProps) {
       replies: [],
     };
 
-    setPosts(prev =>
-      prev.map(p => (p.id === postId ? { ...p, comments: [...(p.comments || []), newComment] } : p))
-    );
+    setPosts(prev => {
+      const updated = prev.map(p => (p.id === postId ? { ...p, comments: [...(p.comments || []), newComment] } : p));
+      localStorage.setItem('mind_mood_community_posts', JSON.stringify(updated));
+      return updated;
+    });
     setCommentInputs(prev => ({ ...prev, [postId]: '' }));
 
     try {
@@ -295,16 +297,18 @@ export default function Community({ token }: CommunityProps) {
       createdAt: new Date().toISOString(),
     };
 
-    setPosts(prev =>
-      prev.map(p => {
+    setPosts(prev => {
+      const updated = prev.map(p => {
         if (p.id !== postId) return p;
         const updatedComments = (p.comments || []).map(c => {
           if (c.id !== commentId) return c;
           return { ...c, replies: [...(c.replies || []), newReply] };
         });
         return { ...p, comments: updatedComments };
-      })
-    );
+      });
+      localStorage.setItem('mind_mood_community_posts', JSON.stringify(updated));
+      return updated;
+    });
 
     setReplyInputs(prev => ({ ...prev, [commentId]: '' }));
     setExpandedReplyBox(null);
