@@ -88,12 +88,26 @@ export default function Community({ token }: CommunityProps) {
         const data = await res.json();
         const incoming: CommunityItem[] = data.posts || [];
         setPosts(prev => {
-          const merged = incoming.map(inc => {
-            const existing = prev.find(p => p.id === inc.id);
-            const comments = (inc.comments && inc.comments.length > 0) ? inc.comments : (existing?.comments || []);
-            const bookmarks = (inc.bookmarks && inc.bookmarks.length > 0) ? inc.bookmarks : (existing?.bookmarks || []);
-            return { ...inc, comments, bookmarks };
-          });
+          const incomingMap = new Map(incoming.map(p => [p.id, p]));
+          const merged: CommunityItem[] = [...incoming];
+
+          // Preserve any locally published post that isn't returned in incoming yet
+          for (const p of prev) {
+            if (!incomingMap.has(p.id)) {
+              merged.push(p);
+            } else {
+              const inc = incomingMap.get(p.id)!;
+              const comments = (inc.comments && inc.comments.length > 0) ? inc.comments : (p.comments || []);
+              const bookmarks = (inc.bookmarks && inc.bookmarks.length > 0) ? inc.bookmarks : (p.bookmarks || []);
+              const likes = (inc.likes && inc.likes.length > 0) ? inc.likes : (p.likes || []);
+              const idx = merged.findIndex(m => m.id === p.id);
+              if (idx !== -1) {
+                merged[idx] = { ...inc, comments, bookmarks, likes };
+              }
+            }
+          }
+
+          merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           localStorage.setItem('mind_mood_community_posts', JSON.stringify(merged));
           return merged;
         });
