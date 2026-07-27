@@ -247,6 +247,8 @@ class DBManager {
   }
 
   // --- Password Reset Helper Methods ---
+  private resetCodes: { [email: string]: string } = {};
+
   public generateResetCode(email: string): string {
     const emailLower = email.toLowerCase().trim();
     let userRecord = Object.values(this.data.users).find((u) => u.email === emailLower);
