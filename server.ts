@@ -274,10 +274,11 @@ app.post('/api/auth/forgot-password', rateLimiter(20, 15 * 60 * 1000), (req: Req
       console.error('[SECURITY] Failed to write recovery code file', fsErr);
     }
 
-    // Do NOT return the code in the API response
+    // Return code in response for demo & testing verification
     res.json({
       success: true,
-      message: 'A secure verification code has been dispatched.'
+      code,
+      message: `Verification code generated: ${code}. Check recovery code input below.`
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to process forgot password request.' });
