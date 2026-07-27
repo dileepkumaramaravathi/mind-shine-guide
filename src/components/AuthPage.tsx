@@ -28,14 +28,27 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Detect deep reset links from email dispatch (#reset-password, #access_token, etc.)
+  // Detect deep reset links from email dispatch (#reset-password, #access_token, &code=1234)
   React.useEffect(() => {
     const hash = window.location.hash || '';
     const search = window.location.search || '';
+    const fullUrl = hash + search;
+    
+    // Extract 4-digit verification code from email link URL if present
+    const codeMatch = fullUrl.match(/[?&]code=(\d{4})/);
+    if (codeMatch && codeMatch[1]) {
+      setVerificationCode(codeMatch[1]);
+      setSimulatedCode(codeMatch[1]);
+    }
+
     if (hash.includes('reset-password') || hash.includes('type=recovery') || hash.includes('access_token') || search.includes('reset')) {
       setMode('forgot');
       setResetStep(2);
-      setSuccessMessage('🔑 Password Reset Email Link Activated! Enter your verification code and set your new password below.');
+      if (codeMatch && codeMatch[1]) {
+        setSuccessMessage(`🔑 Password Reset Email Link Activated! Verification Code auto-filled: ${codeMatch[1]}. Set your new password below.`);
+      } else {
+        setSuccessMessage('🔑 Password Reset Email Link Activated! Enter your verification code and set your new password below.');
+      }
     }
   }, []);
 

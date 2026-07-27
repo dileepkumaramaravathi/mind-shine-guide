@@ -262,7 +262,7 @@ app.post('/api/auth/forgot-password', rateLimiter(20, 15 * 60 * 1000), async (re
       if (supabase) {
         const origin = req.get('origin') || `${req.protocol}://${req.get('host')}`;
         const { error: sErr } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${origin}/#reset-password`,
+          redirectTo: `${origin}/#reset-password&code=${code}`,
         });
         if (!sErr) {
           emailSent = true;
