@@ -248,7 +248,7 @@ app.post('/api/auth/login', rateLimiter(20, 15 * 60 * 1000), (req: Request, res:
 });
 
 // PASSWORD RESET ENDPOINTS
-app.post('/api/auth/forgot-password', rateLimiter(20, 15 * 60 * 1000), (req: Request, res: Response) => {
+app.post('/api/auth/forgot-password', rateLimiter(20, 15 * 60 * 1000), async (req: Request, res: Response) => {
   const { email } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'Email address is required.' });
@@ -259,26 +259,45 @@ app.post('/api/auth/forgot-password', rateLimiter(20, 15 * 60 * 1000), (req: Req
       return res.status(404).json({ error: 'No registered account found with this email.' });
     }
 
-    // Print to terminal console to simulate email dispatch securely
+    // Trigger Supabase Auth real email dispatch to user's email inbox
+    let emailSent = false;
+    try {
+      if (supabase) {
+        const origin = req.get('origin') || `${req.protocol}://${req.get('host')}`;
+        const { error: sErr } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${origin}/#reset-password`,
+        });
+        if (!sErr) {
+          emailSent = true;
+          console.log(`[Supabase Auth] Password reset email successfully dispatched to ${email}`);
+        } else {
+          console.warn('[Supabase Auth Email Reset Warning]', sErr.message);
+        }
+      }
+    } catch (sErr: any) {
+      console.warn('[Supabase Auth Email Reset Exception]', sErr.message);
+    }
+
     console.log(`\n==================================================`);
     console.log(`[SECURITY] PASSWORD RESET REQUEST`);
     console.log(`Email: ${email}`);
     console.log(`Verification Code: ${code}`);
-    console.log(`(This has also been saved to recovery_code.txt in the project root)`);
+    console.log(`Supabase Email Dispatched: ${emailSent}`);
     console.log(`==================================================\n`);
 
-    // Write to a local file in the workspace root for testing & local access
     try {
       fs.writeFileSync(path.join(process.cwd(), 'recovery_code.txt'), code, 'utf-8');
     } catch (fsErr) {
       console.error('[SECURITY] Failed to write recovery code file', fsErr);
     }
 
-    // Return code in response for demo & testing verification
     res.json({
       success: true,
       code,
-      message: `Verification code generated: ${code}. Check recovery code input below.`
+      emailSent,
+      message: emailSent
+        ? `A password reset email has been dispatched to ${email} via Supabase Auth!`
+        : `Verification code generated: ${code}. Check recovery code input below.`
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to process forgot password request.' });
