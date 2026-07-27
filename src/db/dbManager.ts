@@ -246,62 +246,112 @@ class DBManager {
     };
   }
 
-  // --- Password Reset Helper Methods ---
-  private resetCodes: { [email: string]: string } = {};
+  // --- Password Reset & 6-Digit OTP Engine ---
+  public validatePasswordComplexity(password: string): { isValid: boolean; error?: string } {
+    if (!password || password.length < 8) {
+      return { isValid: false, error: 'Password must be at least 8 characters long.' };
+    }
+    if (!/[A-Z]/.test(password)) {
+      return { isValid: false, error: 'Password must contain at least one uppercase letter (A-Z).' };
+    }
+    if (!/[a-z]/.test(password)) {
+      return { isValid: false, error: 'Password must contain at least one lowercase letter (a-z).' };
+    }
+    if (!/[0-9]/.test(password)) {
+      return { isValid: false, error: 'Password must contain at least one number (0-9).' };
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      return { isValid: false, error: 'Password must contain at least one special character (e.g. @, #, $, !).' };
+    }
+    return { isValid: true };
+  }
 
-  public generateResetCode(email: string): string {
+  public generateOtp(email: string): { success: boolean; otp?: string; error?: string; waitSeconds?: number } {
     const emailLower = email.toLowerCase().trim();
-    let userRecord = Object.values(this.data.users).find((u) => u.email === emailLower);
+    const userRecord = Object.values(this.data.users).find((u) => u.email === emailLower);
     if (!userRecord) {
-      const nameFromEmail = emailLower.split('@')[0] || 'Companion';
-      const registered = this.register(nameFromEmail, emailLower, 'Password123');
-      if (registered) userRecord = registered.user;
+      return { success: false, error: 'Email address is not registered.' };
     }
 
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
-    if (!this.data.resetCodes) this.data.resetCodes = {};
-    this.data.resetCodes[emailLower] = code;
-    this.resetCodes[emailLower] = code;
-    this.save();
-    return code;
-  }
+    if (!this.data.otps) this.data.otps = {};
+    const existing = this.data.otps[emailLower];
+    const now = Date.now();
 
-  public verifyResetCode(email: string, code: string): boolean {
-    const emailLower = email.toLowerCase().trim();
-    const cleanCode = (code || '').trim();
-    if (!cleanCode) return false;
-
-    const storedCode = (this.data.resetCodes && this.data.resetCodes[emailLower]) || this.resetCodes[emailLower];
-    if (storedCode && storedCode === cleanCode) return true;
-    // Stateless verification for Vercel serverless container invocations
-    if (/^\d{4}$/.test(cleanCode)) return true;
-    return false;
-  }
-
-  public clearResetCode(email: string): void {
-    const emailLower = email.toLowerCase().trim();
-    if (this.data.resetCodes) delete this.data.resetCodes[emailLower];
-    delete this.resetCodes[emailLower];
-    this.save();
-  }
-
-  public resetPasswordByEmail(email: string, newPassword: string): boolean {
-    const emailLower = email.toLowerCase().trim();
-    let userRecord = Object.values(this.data.users).find((u) => u.email === emailLower);
-    
-    if (!userRecord) {
-      const nameFromEmail = emailLower.split('@')[0] || 'Companion';
-      const registered = this.register(nameFromEmail, emailLower, newPassword);
-      return Boolean(registered);
+    // 60-second resend cooldown timer check
+    if (existing && existing.lastSentAt && (now - existing.lastSentAt < 60000)) {
+      const waitSeconds = Math.ceil((60000 - (now - existing.lastSentAt)) / 1000);
+      return { 
+        success: false, 
+        error: `Please wait ${waitSeconds} seconds before requesting another verification code.`, 
+        waitSeconds 
+      };
     }
 
+    // Generate secure random 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = now + 10 * 60 * 1000; // 10 minutes expiry
+
+    this.data.otps[emailLower] = {
+      otp,
+      expiresAt,
+      attempts: 0,
+      lastSentAt: now
+    };
+
+    this.save();
+    return { success: true, otp };
+  }
+
+  public verifyOtpAndResetPassword(email: string, otp: string, newPassword: string): { success: boolean; error?: string } {
+    const emailLower = email.toLowerCase().trim();
+    const cleanOtp = (otp || '').trim();
+
+    const userRecord = Object.values(this.data.users).find((u) => u.email === emailLower);
+    if (!userRecord) {
+      return { success: false, error: 'Email address is not registered.' };
+    }
+
+    const passCheck = this.validatePasswordComplexity(newPassword);
+    if (!passCheck.isValid) {
+      return { success: false, error: passCheck.error };
+    }
+
+    if (!this.data.otps || !this.data.otps[emailLower]) {
+      return { success: false, error: 'Verification code not found. Please request a new code.' };
+    }
+
+    const record = this.data.otps[emailLower];
+    const now = Date.now();
+
+    if (now > record.expiresAt) {
+      delete this.data.otps[emailLower];
+      this.save();
+      return { success: false, error: 'Verification code expired. Please request a new verification code.' };
+    }
+
+    if (record.attempts >= 5) {
+      delete this.data.otps[emailLower];
+      this.save();
+      return { success: false, error: 'Too many incorrect attempts. Verification code invalidated.' };
+    }
+
+    if (record.otp !== cleanOtp) {
+      record.attempts += 1;
+      this.save();
+      return { success: false, error: 'Incorrect verification code.' };
+    }
+
+    // Securely hash new password and update user record
     const salt = crypto.randomBytes(16).toString('hex');
     const passwordHash = this.hashPassword(newPassword, salt);
-
     userRecord.passwordSalt = salt;
     userRecord.passwordHash = passwordHash;
+    
+    // Invalidate OTP immediately after use
+    delete this.data.otps[emailLower];
     this.save();
-    return true;
+
+    return { success: true };
   }
 
   // --- Mood Methods ---

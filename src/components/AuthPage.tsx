@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Brain, Mail, Lock, User, Eye, EyeOff, Sparkles, AlertCircle, CheckSquare } from 'lucide-react';
+import { Brain, Mail, Lock, User, Eye, EyeOff, Sparkles, AlertCircle, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft } from 'lucide-react';
 
 interface AuthPageProps {
   onAuthSuccess: (token: string, user: any) => void;
@@ -16,43 +16,56 @@ interface AuthPageProps {
 export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode = 'login' }: AuthPageProps) {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
   const [resetStep, setResetStep] = useState<1 | 2>(1);
-  const [verificationCode, setVerificationCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [simulatedCode, setSimulatedCode] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Form Fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // UI Toggles & Timers
   const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // 60s Resend Cooldown Timer
+  const [resendCooldown, setResendCooldown] = useState<number>(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Detect deep reset links from email dispatch (#reset-password, #access_token, &code=1234)
-  React.useEffect(() => {
-    const hash = window.location.hash || '';
-    const search = window.location.search || '';
-    const fullUrl = hash + search;
-    
-    // Extract 4-digit verification code from email link URL if present
-    const codeMatch = fullUrl.match(/[?&]code=(\d{4})/);
-    if (codeMatch && codeMatch[1]) {
-      setVerificationCode(codeMatch[1]);
-      setSimulatedCode(codeMatch[1]);
-    }
-
-    if (hash.includes('reset-password') || hash.includes('type=recovery') || hash.includes('access_token') || search.includes('reset')) {
-      setMode('forgot');
-      setResetStep(2);
-      if (codeMatch && codeMatch[1]) {
-        setSuccessMessage(`🔑 Password Reset Email Link Activated! Verification Code auto-filled: ${codeMatch[1]}. Set your new password below.`);
-      } else {
-        setSuccessMessage('🔑 Password Reset Email Link Activated! Enter your verification code and set your new password below.');
-      }
-    }
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, []);
 
-  // Quick interactive "input reflection tracker":
+  const startResendTimer = () => {
+    setResendCooldown(60);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // Password Complexity Rule Checks
+  const isMinLength = newPassword.length >= 8;
+  const hasUppercase = /[A-Z]/.test(newPassword);
+  const hasLowercase = /[a-z]/.test(newPassword);
+  const hasNumber = /[0-9]/.test(newPassword);
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword);
+  const isPasswordMatch = newPassword.length > 0 && newPassword === confirmPassword;
+  const isPasswordComplex = isMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecial;
+
   const getAnimatedState = () => {
     if (isLoading) return 'thinking';
     if (error) return 'upset';
@@ -61,51 +74,122 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
     return 'neutral';
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendOtp = async () => {
+    if (!email) {
+      setError('Please enter your registered email address.');
+      return;
+    }
     setError(null);
     setSuccessMessage(null);
     setIsLoading(true);
 
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send verification code.');
+      }
+      setResetStep(2);
+      setSuccessMessage('Verification code sent successfully. Check your email inbox.');
+      startResendTimer();
+    } catch (err: any) {
+      setError(err.message || 'Email address is not registered.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || isLoading) return;
+    setError(null);
+    setSuccessMessage(null);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/resend-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend verification code.');
+      }
+      setSuccessMessage('A new verification code has been sent to your registered email address.');
+      startResendTimer();
+    } catch (err: any) {
+      setError(err.message || 'Resend OTP request failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+
+    if (!otp || otp.length < 6) {
+      setError('Please enter the 6-digit verification code received in your email.');
+      return;
+    }
+
+    if (!isPasswordComplex) {
+      setError('New password does not satisfy all complexity requirements.');
+      return;
+    }
+
+    if (!isPasswordMatch) {
+      setError('Passwords do not match. Please verify Confirm Password.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp, newPassword, confirmPassword }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Password reset failed.');
+      }
+
+      setSuccessMessage('Password Reset Successful. Please Login With Your New Password.');
+      setPassword(newPassword);
+      setNewPassword('');
+      setConfirmPassword('');
+      setOtp('');
+      setMode('login');
+      setResetStep(1);
+    } catch (err: any) {
+      setError(err.message || 'Verification code expired or invalid.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (mode === 'forgot') {
-      try {
-        if (resetStep === 1) {
-          const response = await fetch('/api/auth/forgot-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
-          });
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.error || 'Request failed.');
-          }
-          setSimulatedCode(data.code);
-          setResetStep(2);
-        } else {
-          const response = await fetch('/api/auth/reset-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code: verificationCode, newPassword }),
-          });
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.error || 'Password reset failed.');
-          }
-          setSuccessMessage('Your password has been reset successfully! Please sign in with your new credentials below.');
-          setMode('login');
-          setResetStep(1);
-          setSimulatedCode(null);
-          setPassword(newPassword); // pre-populate new password for a perfect UX on login
-          setVerificationCode('');
-          setNewPassword('');
-        }
-      } catch (err: any) {
-        setError(err.message || 'An error occurred during verification.');
-      } finally {
-        setIsLoading(false);
+      if (resetStep === 1) {
+        await handleSendOtp();
+      } else {
+        await handleResetPasswordSubmit(e);
       }
       return;
     }
+
+    setError(null);
+    setSuccessMessage(null);
+    setIsLoading(true);
 
     const url = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
     const payload = mode === 'login' 
@@ -121,10 +205,9 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Something went wrong');
+        throw new Error(data.error || 'Authentication failed');
       }
 
-      // Successful Auth
       onAuthSuccess(data.token, data.user);
     } catch (err: any) {
       setError(err.message || 'Network error, please try again.');
@@ -137,21 +220,32 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f3f0ff] via-[#edf2ff] to-[#ecf2fe] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden" id="auth-page">
-      {/* Background elements */}
+      {/* Background blobs */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-violet-200/50 rounded-full blur-3xl -z-5"></div>
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-200/50 rounded-full blur-3xl -z-5 animate-pulse-slow"></div>
 
-      <div className="w-full max-w-md bg-white/85 backdrop-blur-md rounded-3xl border border-white/60 shadow-xl shadow-slate-100 p-6 sm:p-8 relative" id="auth-box">
-        {/* Back navigation */}
+      <div className="w-full max-w-md bg-white/90 backdrop-blur-md rounded-3xl border border-white/60 shadow-xl shadow-slate-100 p-6 sm:p-8 relative" id="auth-box">
+        {/* Back button */}
         <button 
-          onClick={onBackToLanding}
+          type="button"
+          onClick={() => {
+            if (mode === 'forgot' && resetStep === 2) {
+              setResetStep(1);
+            } else if (mode === 'forgot' || mode === 'register') {
+              setMode('login');
+              setError(null);
+              setSuccessMessage(null);
+            } else {
+              onBackToLanding();
+            }
+          }}
           id="auth-back-btn"
-          className="absolute top-6 left-6 text-xs font-sans font-semibold text-slate-400 hover:text-slate-600 transition flex items-center gap-1 cursor-pointer"
+          className="absolute top-6 left-6 text-xs font-sans font-semibold text-slate-500 hover:text-slate-700 transition flex items-center gap-1 cursor-pointer"
         >
-          ← Back
+          <ArrowLeft className="w-4 h-4" /> Back
         </button>
 
-        {/* Dynamic Interactive Avatar Reacting to On-Screen Actions */}
+        {/* Dynamic Avatar Header */}
         <div className="flex flex-col items-center mt-4 mb-6" id="auth-avatar">
           <motion.div 
             animate={{ 
@@ -174,20 +268,23 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
           </motion.div>
           
           <h2 className="font-sans font-bold text-2xl text-slate-800 tracking-tight mt-4">
-            {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Account' : 'Recover Password'}
+            {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Account' : 'Forgot Password'}
           </h2>
           <p className="font-sans text-xs text-slate-400 mt-1 text-center">
             {mode === 'login' 
-              ? 'Sign in to access your mental safety space' 
+              ? 'Sign in to access your mental wellness dashboard' 
               : mode === 'register' 
-              ? 'Start tracking and nurturing your mindset'
-              : 'Enter your email address to establish a secure password update'}
+              ? 'Start tracking and nurturing your mental well-being'
+              : resetStep === 1 
+              ? 'Enter your registered email to receive a 6-digit OTP code' 
+              : 'Enter the verification code and set your new password'}
           </p>
         </div>
 
+        {/* Notifications */}
         {successMessage && (
           <div className="mb-4 p-3.5 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-2xl text-xs font-sans font-semibold flex items-start gap-2" id="auth-success-msg">
-            <CheckSquare className="w-5 h-5 shrink-0 text-emerald-600 mt-0.5" />
+            <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 mt-0.5" />
             <span>{successMessage}</span>
           </div>
         )}
@@ -200,6 +297,7 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4" id="auth-form">
+          {/* Register Name Field */}
           {mode === 'register' && (
             <div>
               <label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wider mb-1.5">
@@ -220,57 +318,49 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
             </div>
           )}
 
-          {(mode === 'login' || mode === 'register' || (mode === 'forgot' && resetStep === 1)) && (
+          {/* Email Address Field */}
+          {(mode === 'login' || mode === 'register' || mode === 'forgot') && (
             <div>
               <label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Email Address
+                Registered Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
                 <input
                   type="email"
                   required
+                  disabled={mode === 'forgot' && resetStep === 2}
                   placeholder="dileep@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   id="auth-email-input"
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200/80 rounded-2xl font-sans text-slate-700 text-sm focus:outline-hidden focus:border-violet-500 focus:bg-white transition"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200/80 rounded-2xl font-sans text-slate-700 text-sm focus:outline-hidden focus:border-violet-500 focus:bg-white disabled:opacity-60 transition"
                 />
               </div>
             </div>
           )}
 
+          {/* Forgot Password Step 2: Verification Code (OTP) & New Password Fields */}
           {mode === 'forgot' && resetStep === 2 && (
             <div className="space-y-4 animate-fade-in">
-              {simulatedCode && (
-                <div className="p-3.5 bg-violet-55/60 bg-indigo-50 border border-indigo-100 rounded-2xl text-xs font-sans text-[#312e81] flex flex-col gap-1.5">
-                  <span className="font-bold flex items-center gap-1.5 text-[#1e1b4b]">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse shrink-0" />
-                    Sandbox Reset Code Delivered!
-                  </span>
-                  <span>We generated a secure verification validation token code for test purposes:</span>
-                  <span className="mt-1 bg-white border border-slate-205/80 py-1.5 px-4 rounded-xl font-mono text-center text-sm font-black text-indigo-600 tracking-widest leading-none select-all block w-max self-center shadow-2xs">
-                    {simulatedCode}
-                  </span>
-                </div>
-              )}
-
+              {/* 6-Digit OTP Code Input */}
               <div>
                 <label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Verification Code (4 Digits)
+                  Verification Code (6 Digits)
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. 1234"
-                  maxLength={4}
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  id="recovery-code-input"
-                  className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200/80 rounded-2xl font-sans text-slate-700 text-sm font-extrabold tracking-widest text-center focus:outline-hidden focus:border-violet-500 focus:bg-white transition"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                  id="recovery-otp-input"
+                  className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200/80 rounded-2xl font-mono text-center text-lg font-bold tracking-widest text-indigo-700 focus:outline-hidden focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
 
+              {/* New Password Field */}
               <div>
                 <label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                   New Password
@@ -278,30 +368,80 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
                 <div className="relative">
                   <Lock className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
                   <input
-                    type={showPassword ? 'text' : 'password'}
+                    type={showNewPassword ? 'text' : 'password'}
                     required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setNewPassword(e.target.value);
-                    }}
-                    id="recovery-password-input"
+                    placeholder="MindMood@123"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    id="recovery-new-password-input"
                     className="w-full pl-11 pr-11 py-3 bg-slate-50/50 border border-slate-200/80 rounded-2xl font-sans text-slate-700 text-sm focus:outline-hidden focus:border-violet-500 focus:bg-white transition"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    id="recovery-password-toggle"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    id="recovery-new-password-toggle"
                     className="absolute right-4 top-3.5 text-slate-400 hover:text-slate-600 focus:outline-hidden"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
+                </div>
+              </div>
+
+              {/* Confirm Password Field */}
+              <div>
+                <label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    placeholder="MindMood@123"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    id="recovery-confirm-password-input"
+                    className="w-full pl-11 pr-11 py-3 bg-slate-50/50 border border-slate-200/80 rounded-2xl font-sans text-slate-700 text-sm focus:outline-hidden focus:border-violet-500 focus:bg-white transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    id="recovery-confirm-password-toggle"
+                    className="absolute right-4 top-3.5 text-slate-400 hover:text-slate-600 focus:outline-hidden"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Password Requirements Live Checklist */}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1.5 text-xs font-sans">
+                <p className="font-bold text-slate-600 mb-1">Password Requirements:</p>
+                <div className="grid grid-cols-2 gap-1 text-[11px]">
+                  <span className={isMinLength ? 'text-emerald-600 font-semibold flex items-center gap-1' : 'text-slate-400 flex items-center gap-1'}>
+                    {isMinLength ? '✓' : '•'} 8+ Characters
+                  </span>
+                  <span className={hasUppercase ? 'text-emerald-600 font-semibold flex items-center gap-1' : 'text-slate-400 flex items-center gap-1'}>
+                    {hasUppercase ? '✓' : '•'} 1 Uppercase (A-Z)
+                  </span>
+                  <span className={hasLowercase ? 'text-emerald-600 font-semibold flex items-center gap-1' : 'text-slate-400 flex items-center gap-1'}>
+                    {hasLowercase ? '✓' : '•'} 1 Lowercase (a-z)
+                  </span>
+                  <span className={hasNumber ? 'text-emerald-600 font-semibold flex items-center gap-1' : 'text-slate-400 flex items-center gap-1'}>
+                    {hasNumber ? '✓' : '•'} 1 Number (0-9)
+                  </span>
+                  <span className={hasSpecial ? 'text-emerald-600 font-semibold flex items-center gap-1' : 'text-slate-400 flex items-center gap-1'}>
+                    {hasSpecial ? '✓' : '•'} 1 Special Char (@,#,!)
+                  </span>
+                  <span className={isPasswordMatch ? 'text-emerald-600 font-semibold flex items-center gap-1' : 'text-slate-400 flex items-center gap-1'}>
+                    {isPasswordMatch ? '✓' : '•'} Passwords Match
+                  </span>
                 </div>
               </div>
             </div>
           )}
 
+          {/* Standard Login Password Field */}
           {mode !== 'forgot' && (
             <div>
               <div className="flex justify-between items-center mb-1.5">
@@ -316,10 +456,9 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
                       setResetStep(1);
                       setError(null);
                       setSuccessMessage(null);
-                      setSimulatedCode(null);
                     }}
                     id="auth-forgot-password"
-                    className="text-xs font-sans text-violet-600 hover:underline cursor-pointer"
+                    className="text-xs font-sans text-violet-600 hover:underline font-semibold cursor-pointer"
                   >
                     Forgot Password?
                   </button>
@@ -348,6 +487,7 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
             </div>
           )}
 
+          {/* Submit Action Button */}
           <button
             type="submit"
             disabled={isLoading}
@@ -360,40 +500,60 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
               <>
                 <Sparkles className="w-4 h-4" />
                 {mode === 'login' 
-                  ? 'Sign In Successfully' 
+                  ? 'Sign In' 
                   : mode === 'register' 
-                  ? 'Generate Secure Account' 
+                  ? 'Create Account' 
                   : resetStep === 1 
                   ? 'Send Verification Code' 
-                  : 'Verify & Reset Password'}
+                  : 'Verify OTP & Reset Password'}
               </>
             )}
           </button>
+
+          {/* Resend OTP Button & Countdown Timer */}
+          {mode === 'forgot' && resetStep === 2 && (
+            <div className="pt-2 text-center space-y-2">
+              <button
+                type="button"
+                disabled={resendCooldown > 0 || isLoading}
+                onClick={handleResendOtp}
+                id="auth-resend-otp-btn"
+                className="text-xs font-sans font-semibold text-violet-600 hover:text-violet-800 disabled:text-slate-400 disabled:no-underline flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                {resendCooldown > 0 
+                  ? `Resend Verification Code available in ${resendCooldown}s` 
+                  : 'Resend Verification Code'}
+              </button>
+            </div>
+          )}
         </form>
 
+        {/* Footer Navigation */}
         <div className="mt-6 text-center border-t border-slate-100 pt-6">
           <p className="font-sans text-sm text-slate-500">
             {mode === 'forgot' 
               ? 'Remembered your password?' 
               : mode === 'login' 
-              ? "Don't have an emotional account?" 
+              ? "Don't have an account?" 
               : 'Already registered with us?'}
+            {' '}
             <button
+              type="button"
               onClick={() => {
-                setMode(mode === 'forgot' ? 'login' : mode === 'login' ? 'register' : 'login');
                 setError(null);
                 setSuccessMessage(null);
-                setSimulatedCode(null);
                 setResetStep(1);
+                if (mode === 'forgot' || mode === 'register') {
+                  setMode('login');
+                } else {
+                  setMode('register');
+                }
               }}
-              id="auth-switch-mode"
-              className="ml-1.5 text-violet-600 font-bold hover:underline transition cursor-pointer"
+              id="auth-[#mode]-toggle-btn"
+              className="font-bold text-violet-600 hover:underline cursor-pointer ml-1"
             >
-              {mode === 'forgot' 
-                ? 'Sign In' 
-                : mode === 'login' 
-                ? 'Register Account' 
-                : 'Sign In'}
+              {mode === 'forgot' || mode === 'register' ? 'Sign In' : 'Create Account'}
             </button>
           </p>
         </div>

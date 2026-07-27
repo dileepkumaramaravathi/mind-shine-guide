@@ -247,90 +247,112 @@ app.post('/api/auth/login', rateLimiter(20, 15 * 60 * 1000), (req: Request, res:
   }
 });
 
-// PASSWORD RESET ENDPOINTS
-app.post('/api/auth/forgot-password', rateLimiter(20, 15 * 60 * 1000), async (req: Request, res: Response) => {
+// PASSWORD RESET & 6-DIGIT OTP ENDPOINTS
+app.post('/api/auth/forgot-password', rateLimiter(15, 15 * 60 * 1000), async (req: Request, res: Response) => {
   const { email } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'Email address is required.' });
   }
   try {
-    const code = db.generateResetCode(email);
+    const result = db.generateOtp(email);
+    if (!result.success) {
+      return res.status(result.error?.includes('not registered') ? 404 : 429).json({ 
+        error: result.error, 
+        waitSeconds: result.waitSeconds 
+      });
+    }
 
-    // Trigger Supabase Auth real email dispatch to user's email inbox
+    const otp = result.otp!;
     let emailSent = false;
+
+    // Trigger Supabase Auth email dispatch
     try {
       if (supabase) {
         const origin = req.get('origin') || `${req.protocol}://${req.get('host')}`;
         const { error: sErr } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${origin}/#reset-password&code=${code}`,
+          redirectTo: `${origin}/#reset-password`,
         });
-        if (!sErr) {
-          emailSent = true;
-          console.log(`[Supabase Auth] Password reset email successfully dispatched to ${email}`);
-        } else {
-          console.warn('[Supabase Auth Email Reset Warning]', sErr.message);
-        }
+        if (!sErr) emailSent = true;
       }
     } catch (sErr: any) {
-      console.warn('[Supabase Auth Email Reset Exception]', sErr.message);
+      console.warn('[Supabase Auth Reset Email Exception]', sErr.message);
     }
 
     console.log(`\n==================================================`);
-    console.log(`[SECURITY] PASSWORD RESET REQUEST`);
-    console.log(`Email: ${email}`);
-    console.log(`Verification Code: ${code}`);
-    console.log(`Supabase Email Dispatched: ${emailSent}`);
+    console.log(`[SECURITY] 6-DIGIT OTP GENERATED`);
+    console.log(`Recipient Email: ${email}`);
+    console.log(`OTP Code: ${otp}`);
+    console.log(`Supabase Dispatched: ${emailSent}`);
     console.log(`==================================================\n`);
 
+    // SECURITY: Never expose OTP or verification code in the API response
+    res.json({
+      success: true,
+      message: 'Verification code sent to your registered email address.'
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to process password reset request. Please try again.' });
+  }
+});
+
+app.post('/api/auth/resend-otp', rateLimiter(10, 15 * 60 * 1000), async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email address is required.' });
+  }
+  try {
+    const result = db.generateOtp(email);
+    if (!result.success) {
+      return res.status(result.error?.includes('not registered') ? 404 : 429).json({ 
+        error: result.error, 
+        waitSeconds: result.waitSeconds 
+      });
+    }
+
+    const otp = result.otp!;
+    let emailSent = false;
+
     try {
-      fs.writeFileSync(path.join(process.cwd(), 'recovery_code.txt'), code, 'utf-8');
-    } catch (fsErr) {
-      console.error('[SECURITY] Failed to write recovery code file', fsErr);
+      if (supabase) {
+        const origin = req.get('origin') || `${req.protocol}://${req.get('host')}`;
+        const { error: sErr } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${origin}/#reset-password`,
+        });
+        if (!sErr) emailSent = true;
+      }
+    } catch (sErr: any) {
+      console.warn('[Supabase Auth Resend Email Exception]', sErr.message);
     }
 
     res.json({
       success: true,
-      code,
-      emailSent,
-      message: emailSent
-        ? `A password reset email has been dispatched to ${email} via Supabase Auth!`
-        : `Verification code generated: ${code}. Check recovery code input below.`
+      message: 'A new verification code has been sent to your registered email address.'
     });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to process forgot password request.' });
+    res.status(500).json({ error: 'Failed to resend verification code. Please try again.' });
   }
 });
 
-app.post('/api/auth/reset-password', rateLimiter(20, 15 * 60 * 1000), (req: Request, res: Response) => {
-  const { email, code, newPassword } = req.body;
-  if (!email || !code || !newPassword) {
-    return res.status(400).json({ error: 'Email, verification code, and new password are required.' });
+app.post('/api/auth/reset-password', rateLimiter(15, 15 * 60 * 1000), (req: Request, res: Response) => {
+  const { email, code, otp, newPassword, confirmPassword } = req.body;
+  const inputOtp = otp || code;
+
+  if (!email || !inputOtp || !newPassword) {
+    return res.status(400).json({ error: 'Email, verification code (OTP), and new password are required.' });
   }
+
+  if (confirmPassword && newPassword !== confirmPassword) {
+    return res.status(400).json({ error: 'Passwords do not match. Please verify Confirm Password.' });
+  }
+
   try {
-    const isValid = db.verifyResetCode(email, code);
-    if (!isValid) {
-      return res.status(400).json({ error: 'Incorrect verification code.' });
+    const result = db.verifyOtpAndResetPassword(email, inputOtp, newPassword);
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
     }
 
-    const success = db.resetPasswordByEmail(email, newPassword);
-    if (!success) {
-      return res.status(400).json({ error: 'Could not reset password. Please try registering again.' });
-    }
-
-    db.clearResetCode(email);
-    
-    // Clean up recovery file
-    try {
-      const codeFile = path.join(process.cwd(), 'recovery_code.txt');
-      if (fs.existsSync(codeFile)) {
-        fs.unlinkSync(codeFile);
-      }
-    } catch (fsErr) {
-      // ignore
-    }
-
-    // Seed alert notification for password change event
-    const userRecord = Object.values((db as any).data.users).find((u: any) => u.email === email.toLowerCase().trim());
+    // Security notification for successful password change
+    const userRecord = db.getUserByEmail(email);
     if (userRecord) {
       db.addNotification(
         (userRecord as any).id,
