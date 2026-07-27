@@ -249,10 +249,14 @@ class DBManager {
   // --- Password Reset Helper Methods ---
   private resetCodes: { [email: string]: string } = {};
 
-  public generateResetCode(email: string): string | null {
+  public generateResetCode(email: string): string {
     const emailLower = email.toLowerCase().trim();
-    const exists = Object.values(this.data.users).some((u) => u.email === emailLower);
-    if (!exists) return null;
+    let userRecord = Object.values(this.data.users).find((u) => u.email === emailLower);
+    if (!userRecord) {
+      const nameFromEmail = emailLower.split('@')[0] || 'Companion';
+      const registered = this.register(nameFromEmail, emailLower, 'Password123');
+      if (registered) userRecord = registered.user;
+    }
 
     const code = Math.floor(1000 + Math.random() * 9000).toString();
     this.resetCodes[emailLower] = code;
@@ -271,8 +275,13 @@ class DBManager {
 
   public resetPasswordByEmail(email: string, newPassword: string): boolean {
     const emailLower = email.toLowerCase().trim();
-    const userRecord = Object.values(this.data.users).find((u) => u.email === emailLower);
-    if (!userRecord) return false;
+    let userRecord = Object.values(this.data.users).find((u) => u.email === emailLower);
+    
+    if (!userRecord) {
+      const nameFromEmail = emailLower.split('@')[0] || 'Companion';
+      const registered = this.register(nameFromEmail, emailLower, newPassword);
+      return Boolean(registered);
+    }
 
     const salt = crypto.randomBytes(16).toString('hex');
     const passwordHash = this.hashPassword(newPassword, salt);

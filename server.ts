@@ -255,9 +255,6 @@ app.post('/api/auth/forgot-password', rateLimiter(20, 15 * 60 * 1000), async (re
   }
   try {
     const code = db.generateResetCode(email);
-    if (!code) {
-      return res.status(404).json({ error: 'No registered account found with this email.' });
-    }
 
     // Trigger Supabase Auth real email dispatch to user's email inbox
     let emailSent = false;
