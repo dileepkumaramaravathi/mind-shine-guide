@@ -28,8 +28,18 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Detect deep reset links from email dispatch (#reset-password, #access_token, etc.)
+  React.useEffect(() => {
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    if (hash.includes('reset-password') || hash.includes('type=recovery') || hash.includes('access_token') || search.includes('reset')) {
+      setMode('forgot');
+      setResetStep(2);
+      setSuccessMessage('🔑 Password Reset Email Link Activated! Enter your verification code and set your new password below.');
+    }
+  }, []);
+
   // Quick interactive "input reflection tracker":
-  // We change the animated graphic depending on which fields have text
   const getAnimatedState = () => {
     if (isLoading) return 'thinking';
     if (error) return 'upset';

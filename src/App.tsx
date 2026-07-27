@@ -47,12 +47,18 @@ export default function App() {
     }, 4500);
   };
 
-  // Load token + user on launch
+  // Load token + user on launch & handle deep password reset links
   useEffect(() => {
-    const savedToken = localStorage.getItem('mind_mood_token');
-    if (savedToken) {
-      setToken(savedToken);
-      fetchProfile(savedToken);
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    if (hash.includes('reset-password') || hash.includes('type=recovery') || hash.includes('access_token') || search.includes('reset')) {
+      setView('login');
+    } else {
+      const savedToken = localStorage.getItem('mind_mood_token');
+      if (savedToken) {
+        setToken(savedToken);
+        fetchProfile(savedToken);
+      }
     }
   }, []);
 
