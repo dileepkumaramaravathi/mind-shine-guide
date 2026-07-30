@@ -11,6 +11,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { db, verifyToken } from './src/db/dbManager.js';
 import { MoodType } from './src/types.js';
 import { createClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://geqgbznbgbffcployftk.supabase.co';
 const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_JMrMtWHO3ahkmeusnpb9RA_NDx_oY_e';
@@ -18,6 +19,60 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // API Key setup from Secrets environment variables
 const apiKey = process.env.GEMINI_API_KEY;
+
+// Nodemailer SMTP setup for sending OTP reset codes
+const smtpHost = process.env.SMTP_HOST || '';
+const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+const smtpUser = process.env.SMTP_USER || '';
+const smtpPass = process.env.SMTP_PASS || '';
+const smtpFrom = process.env.SMTP_FROM || '"Mind Mood AI" <no-reply@mindmoodai.com>';
+
+let transporter: any = null;
+if (smtpHost && smtpUser && smtpPass) {
+  transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
+}
+
+async function sendOtpEmail(email: string, otp: string): Promise<boolean> {
+  if (!transporter) {
+    console.warn('[SMTP] Email not sent because SMTP settings are not configured in environment variables.');
+    return false;
+  }
+  try {
+    await transporter.sendMail({
+      from: smtpFrom,
+      to: email,
+      subject: 'Mind Mood AI — Your Password Reset OTP Code',
+      text: `Hello,\n\nYou have requested a password reset for your Mind Mood AI account. Here is your 6-digit verification code:\n\n${otp}\n\nThis OTP is valid for 10 minutes. If you did not request a password reset, please ignore this email.\n\nWarmly,\nThe Mind Mood AI Team`,
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #f0f0f0; border-radius: 8px;">
+          <h2 style="color: #6366f1; text-align: center;">Mind Mood AI</h2>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+          <p>Hello,</p>
+          <p>You have requested a password reset for your Mind Mood AI account. Here is your 6-digit verification code:</p>
+          <div style="background-color: #f5f3ff; border: 1px solid #ddd6fe; padding: 15px; border-radius: 6px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #4f46e5; margin: 20px 0;">
+            ${otp}
+          </div>
+          <p>This code is valid for <strong>10 minutes</strong>. If you did not request a password reset, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="font-size: 12px; color: #777; text-align: center;">This is an automated message from Mind Mood AI. Please do not reply to this email.</p>
+        </div>
+      `,
+    });
+    console.log(`[SMTP] Successfully sent OTP email to ${email}`);
+    return true;
+  } catch (err: any) {
+    console.error('[SMTP] Failed to send OTP email:', err.message);
+    return false;
+  }
+}
 
 // Lazy-loaded GenAI Client
 let genAIClient: GoogleGenAI | null = null;
@@ -265,17 +320,22 @@ app.post('/api/auth/forgot-password', rateLimiter(15, 15 * 60 * 1000), async (re
     const otp = result.otp!;
     let emailSent = false;
 
-    // Trigger Supabase Auth email dispatch
-    try {
-      if (supabase) {
-        const origin = req.get('origin') || `${req.protocol}://${req.get('host')}`;
-        const { error: sErr } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${origin}/#reset-password`,
-        });
-        if (!sErr) emailSent = true;
+    // Trigger SMTP email dispatch
+    emailSent = await sendOtpEmail(email, otp);
+
+    // Fallback: Trigger Supabase Auth email dispatch if SMTP not set
+    if (!emailSent) {
+      try {
+        if (supabase) {
+          const origin = req.get('origin') || `${req.protocol}://${req.get('host')}`;
+          const { error: sErr } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${origin}/#reset-password`,
+          });
+          if (!sErr) emailSent = true;
+        }
+      } catch (sErr: any) {
+        console.warn('[Supabase Auth Reset Email Exception]', sErr.message);
       }
-    } catch (sErr: any) {
-      console.warn('[Supabase Auth Reset Email Exception]', sErr.message);
     }
 
     console.log(`\n==================================================`);
@@ -312,16 +372,22 @@ app.post('/api/auth/resend-otp', rateLimiter(10, 15 * 60 * 1000), async (req: Re
     const otp = result.otp!;
     let emailSent = false;
 
-    try {
-      if (supabase) {
-        const origin = req.get('origin') || `${req.protocol}://${req.get('host')}`;
-        const { error: sErr } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${origin}/#reset-password`,
-        });
-        if (!sErr) emailSent = true;
+    // Trigger SMTP email dispatch
+    emailSent = await sendOtpEmail(email, otp);
+
+    // Fallback: Trigger Supabase Auth email dispatch if SMTP not set
+    if (!emailSent) {
+      try {
+        if (supabase) {
+          const origin = req.get('origin') || `${req.protocol}://${req.get('host')}`;
+          const { error: sErr } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${origin}/#reset-password`,
+          });
+          if (!sErr) emailSent = true;
+        }
+      } catch (sErr: any) {
+        console.warn('[Supabase Auth Resend Email Exception]', sErr.message);
       }
-    } catch (sErr: any) {
-      console.warn('[Supabase Auth Resend Email Exception]', sErr.message);
     }
 
     res.json({

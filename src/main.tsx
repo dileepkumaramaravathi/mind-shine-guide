@@ -9,8 +9,8 @@ const originalFetch = window.fetch;
 window.fetch = async function (input, init) {
   const url = typeof input === 'string' ? input : input.url;
   
-  // Intercept all API database requests to process them in localStorage
-  if (url.startsWith('/api/') && !url.includes('/api/ai/chat') && !url.includes('/api/ai/analyze-mood')) {
+  // Intercept all API database requests to process them in localStorage (excluding community plaza to allow shared sync)
+  if (url.startsWith('/api/') && !url.includes('/api/ai/chat') && !url.includes('/api/ai/analyze-mood') && !url.includes('/api/community')) {
     const method = init?.method?.toUpperCase() || 'GET';
     const headers = (init?.headers as Record<string, string>) || {};
     const bodyRaw = init?.body ? JSON.parse(init.body.toString()) : null;
