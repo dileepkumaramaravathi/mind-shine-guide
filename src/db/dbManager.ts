@@ -6,9 +6,15 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 import { User, Mood, JournalEntry, MoodType, ChatMessage, CommunityItem, NotificationItem } from '../types.js';
 
-const DB_FILE = path.join(process.cwd(), 'data_store.json');
+const isVercel = process.env.VERCEL === '1' || process.env.NOW_BUILDER === '1';
+const DB_FILE = isVercel ? '/tmp/data_store.json' : path.join(process.cwd(), 'data_store.json');
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://geqgbznbgbffcployftk.supabase.co';
+const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_JMrMtWHO3ahkmeusnpb9RA_NDx_oY_e';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 interface UserRecord extends User {
   passwordHash: string;
@@ -135,8 +141,56 @@ class DBManager {
   private save() {
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
+      this.saveToSupabase().catch((err) => {
+        console.error('Failed to sync saveToSupabase:', err);
+      });
     } catch (e) {
       console.error('Failed to save database', e);
+    }
+  }
+
+  public async loadFromSupabase() {
+    try {
+      const { data, error } = await supabase.storage.from('app-data').download('data_store.json');
+      if (!error && data) {
+        const text = await data.text();
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === 'object') {
+          this.data = parsed;
+          try {
+            fs.writeFileSync(DB_FILE, text, 'utf-8');
+          } catch (fsErr) { /* ignore */ }
+          console.log('[SUPABASE STORAGE] Loaded app database successfully.');
+          return;
+        }
+      } else if (error) {
+        console.warn('[SUPABASE STORAGE] Load warning:', error.message);
+      }
+    } catch (e: any) {
+      console.warn('[SUPABASE STORAGE] Load error:', e.message);
+    }
+    this.load();
+  }
+
+  public async saveToSupabase() {
+    try {
+      try {
+        await supabase.storage.createBucket('app-data', { public: false });
+      } catch (err) { /* ignore */ }
+
+      const content = JSON.stringify(this.data, null, 2);
+      const buffer = Buffer.from(content, 'utf-8');
+      
+      const { error } = await supabase.storage.from('app-data').upload('data_store.json', buffer, {
+        upsert: true
+      });
+      if (error) {
+        console.warn('[SUPABASE STORAGE] Save warning:', error.message);
+      } else {
+        console.log('[SUPABASE STORAGE] Synced app database to cloud.');
+      }
+    } catch (e: any) {
+      console.warn('[SUPABASE STORAGE] Save error:', e.message);
     }
   }
 

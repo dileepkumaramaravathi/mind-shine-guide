@@ -135,15 +135,12 @@ function setAuthCookie(res: Response, token: string) {
 
 // Security Headers & CORS Policy Middleware
 app.use((req, res, next) => {
-  // CORS Configuration
-  const allowedOrigins = [
-    'http://localhost:5173', 
-    'http://localhost:3000',
-    'https://mind-shine-guide-main.vercel.app'
-  ];
+  // CORS Configuration - Permissive for Vercel/Capacitor Multi-device Clients
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
+  if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -160,6 +157,21 @@ app.use((req, res, next) => {
 
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
+  }
+  next();
+});
+
+// Shared cloud database loader middleware (resilient load from Supabase Storage)
+let isDatabaseLoaded = false;
+app.use(async (req, res, next) => {
+  if (!isDatabaseLoaded) {
+    try {
+      // Call public asynchronous method to populate internal database from storage bucket
+      await db.loadFromSupabase();
+      isDatabaseLoaded = true;
+    } catch (err) {
+      console.error('[SUPABASE SYNC] Failed initialization:', err);
+    }
   }
   next();
 });
