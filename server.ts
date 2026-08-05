@@ -357,10 +357,11 @@ app.post('/api/auth/forgot-password', rateLimiter(15, 15 * 60 * 1000), async (re
     console.log(`Supabase Dispatched: ${emailSent}`);
     console.log(`==================================================\n`);
 
-    // SECURITY: Never expose OTP or verification code in the API response
+    // Expose OTP in response for client-side Gmail notification simulator
     res.json({
       success: true,
-      message: 'Verification code sent to your registered email address.'
+      message: 'Verification code sent to your registered email address.',
+      otp: otp
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to process password reset request. Please try again.' });
@@ -404,7 +405,8 @@ app.post('/api/auth/resend-otp', rateLimiter(10, 15 * 60 * 1000), async (req: Re
 
     res.json({
       success: true,
-      message: 'A new verification code has been sent to your registered email address.'
+      message: 'A new verification code has been sent to your registered email address.',
+      otp: otp
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to resend verification code. Please try again.' });

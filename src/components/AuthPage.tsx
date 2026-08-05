@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Brain, Mail, Lock, User, Eye, EyeOff, Sparkles, AlertCircle, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft } from 'lucide-react';
 
 interface AuthPageProps {
@@ -16,6 +16,30 @@ interface AuthPageProps {
 export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode = 'login' }: AuthPageProps) {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
   const [resetStep, setResetStep] = useState<1 | 2>(1);
+  const [gmailNotification, setGmailNotification] = useState<{
+    show: boolean;
+    otp: string;
+  }>({ show: false, otp: '' });
+
+  const showGmailNotification = (code: string) => {
+    setGmailNotification({ show: true, otp: code });
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(580, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.15);
+    } catch (e) {}
+
+    setTimeout(() => {
+      setGmailNotification((prev) => ({ ...prev, show: false }));
+    }, 9000);
+  };
 
   // Form Fields
   const [email, setEmail] = useState('');
@@ -114,6 +138,9 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
       setResetStep(2);
       setSuccessMessage('Verification code sent successfully. Check your email inbox.');
       startResendTimer();
+      if (data.otp) {
+        showGmailNotification(data.otp);
+      }
     } catch (err: any) {
       setError(err.message || 'Email address is not registered.');
     } finally {
@@ -139,6 +166,9 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
       }
       setSuccessMessage('A new verification code has been sent to your registered email address.');
       startResendTimer();
+      if (data.otp) {
+        showGmailNotification(data.otp);
+      }
     } catch (err: any) {
       setError(err.message || 'Resend OTP request failed.');
     } finally {
@@ -576,6 +606,46 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
           </p>
         </div>
       </div>
+      {/* Gmail Notification Simulator Card */}
+      <AnimatePresence>
+        {gmailNotification.show && (
+          <motion.div
+            initial={{ opacity: 0, x: 100, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 100, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            className="fixed top-6 right-6 w-96 bg-white/95 border border-slate-200/80 rounded-2xl shadow-2xl p-4 flex gap-4 pointer-events-auto z-[99999]"
+            id="gmail-notification-simulation"
+          >
+            <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center shrink-0 border border-red-100 shadow-sm animate-pulse">
+              <Mail className="w-6 h-6 text-red-500 fill-red-100" />
+            </div>
+
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-sans font-extrabold text-slate-400 tracking-wider uppercase">
+                  GMAIL • NOW
+                </span>
+                <button 
+                  onClick={() => setGmailNotification(prev => ({ ...prev, show: false }))}
+                  className="text-slate-400 hover:text-slate-650 transition p-0.5 rounded-lg cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 rotate-90" />
+                </button>
+              </div>
+              <h4 className="text-xs font-sans font-black text-slate-800 truncate">
+                Mind Mood AI Support
+              </h4>
+              <p className="text-[11px] font-sans text-slate-500 leading-normal">
+                Your password verification OTP code is:
+                <span className="block mt-1 font-sans font-black text-sm text-indigo-600 tracking-wider bg-indigo-50 border border-indigo-100 py-1.5 px-3 rounded-lg w-max select-all cursor-pointer">
+                  {gmailNotification.otp}
+                </span>
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
