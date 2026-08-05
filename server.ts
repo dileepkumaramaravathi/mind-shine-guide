@@ -1186,7 +1186,7 @@ app.get('/api/community', authMiddleware, async (req: AuthenticatedRequest, res:
       }
     }
 
-    const merged = Array.from(postMap.values());
+    const merged = Array.from(postMap.values()).filter((p: any) => p.id !== 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
     merged.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     res.json({ posts: merged });
   } catch (err) {

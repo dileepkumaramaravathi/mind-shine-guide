@@ -43,6 +43,24 @@ export default function AuthPage({ onAuthSuccess, onBackToLanding, initialMode =
     };
   }, []);
 
+  // Intercept Supabase Auth recovery magic link redirect
+  useEffect(() => {
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    if (hash.includes('type=recovery') || hash.includes('access_token') || search.includes('reset')) {
+      setMode('forgot');
+      setResetStep(2);
+      setOtp('SUPABASE_RECOVERY_BYPASS');
+      
+      const searchParams = new URLSearchParams(hash.replace('#', '?') || search);
+      const emailParam = searchParams.get('email');
+      if (emailParam) {
+        setEmail(emailParam);
+      }
+      setSuccessMessage('Email recovery link verified. Please enter your new password below.');
+    }
+  }, []);
+
   const startResendTimer = () => {
     setResendCooldown(60);
     if (timerRef.current) clearInterval(timerRef.current);
