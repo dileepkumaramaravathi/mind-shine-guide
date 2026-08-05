@@ -161,16 +161,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// Shared cloud database loader middleware (resilient load from Supabase Storage)
-let isDatabaseLoaded = false;
+// Shared cloud database loader middleware (resilient load from Supabase database row)
 app.use(async (req, res, next) => {
-  if (!isDatabaseLoaded) {
+  if (req.url.startsWith('/api/')) {
     try {
-      // Call public asynchronous method to populate internal database from storage bucket
+      // Call public asynchronous method to populate internal database from Supabase table
       await db.loadFromSupabase();
-      isDatabaseLoaded = true;
     } catch (err) {
-      console.error('[SUPABASE SYNC] Failed initialization:', err);
+      console.error('[SUPABASE SYNC] Failed to reload database state:', err);
     }
   }
   next();
