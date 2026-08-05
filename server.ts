@@ -1403,60 +1403,10 @@ app.post('/api/notifications/clear', authMiddleware, (req: AuthenticatedRequest,
 app.get('/api/wellness/score', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const cleanUserId = userId.startsWith('token-') ? userId.replace('token-', '') : userId;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const dbId = uuidRegex.test(cleanUserId) ? cleanUserId : '00000000-0000-0000-0000-000000000000';
-
-    // 1. Fetch Moods from Supabase
-    let moods: any[] = [];
-    try {
-      const { data: dbMoods } = await supabase
-        .from('moods')
-        .select('*')
-        .eq('user_id', dbId);
-      if (dbMoods) {
-        moods = dbMoods.map((m: any) => ({
-          id: m.id,
-          userId: m.user_id,
-          moodType: m.mood,
-          intensity: m.intensity,
-          note: m.notes || '',
-          date: m.created_at ? m.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-          createdAt: m.created_at || new Date().toISOString()
-        }));
-      }
-    } catch (e) {
-      console.warn('Wellness fetch moods from Supabase failed:', e);
-      moods = db.getMoodHistory(userId);
-    }
-
-    // 2. Fetch Journals from Supabase
-    let journals: any[] = [];
-    try {
-      let { data: dbJournals } = await supabase
-        .from('journal_entries')
-        .select('*')
-        .eq('user_id', dbId);
-      if (!dbJournals) {
-        const { data: fallbackJournals } = await supabase
-          .from('journals')
-          .select('*')
-          .eq('user_id', dbId);
-        dbJournals = fallbackJournals;
-      }
-      if (dbJournals) {
-        journals = dbJournals.map((j: any) => ({
-          id: j.id,
-          userId: j.user_id,
-          text: j.content,
-          moodTag: j.title,
-          createdAt: j.created_at || new Date().toISOString()
-        }));
-      }
-    } catch (e) {
-      console.warn('Wellness fetch journals from Supabase failed:', e);
-      journals = db.getAllJournals(userId);
-    }
+    
+    // Fetch moods and journals directly from the synced database (which is cloud persistent)
+    const moods = db.getMoodHistory(userId);
+    const journals = db.getAllJournals(userId);
 
     const user = db.getUser(userId);
     const consecutiveDays = user?.moodStreak || Math.min(moods.length, 3); // Dynamic fallback
