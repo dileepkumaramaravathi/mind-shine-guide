@@ -327,9 +327,27 @@ class DBManager {
 
   public generateOtp(email: string): { success: boolean; otp?: string; error?: string; waitSeconds?: number } {
     const emailLower = email.toLowerCase().trim();
-    const userRecord = Object.values(this.data.users).find((u) => u.email === emailLower);
+    let userRecord = Object.values(this.data.users).find((u) => u.email === emailLower);
+    
     if (!userRecord) {
-      return { success: false, error: 'Email address is not registered.' };
+      const newUserId = crypto.randomUUID();
+      const salt = crypto.randomBytes(16).toString('hex');
+      const tempPasswordHash = this.hashPassword('TempPass123!', salt);
+      
+      const newUser: UserRecord = {
+        id: newUserId,
+        name: emailLower.split('@')[0],
+        email: emailLower,
+        passwordHash: tempPasswordHash,
+        passwordSalt: salt,
+        moodStreak: 0,
+        lastActiveDate: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+      
+      this.data.users[newUser.id] = newUser;
+      this.save();
+      userRecord = newUser;
     }
 
     if (!this.data.otps) this.data.otps = {};
