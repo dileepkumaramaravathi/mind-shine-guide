@@ -269,7 +269,7 @@ app.post('/api/auth/register', rateLimiter(20, 15 * 60 * 1000), async (req: Requ
       return res.status(400).json({ error: 'An account with this email already exists.' });
     }
     
-    // Sync registration with Supabase Auth & create database row in public.profiles table
+    // Sync registration with Supabase Auth & create database row in profiles and users tables
     try {
       if (supabase) {
         const { data: authData } = await supabase.auth.signUp({
@@ -283,10 +283,19 @@ app.post('/api/auth/register', rateLimiter(20, 15 * 60 * 1000), async (req: Requ
         });
 
         if (authData && authData.user) {
+          // Write to profiles table
           await supabase.from('profiles').upsert({
             id: authData.user.id,
             full_name: name.trim(),
             updated_at: new Date().toISOString()
+          });
+
+          // Write to users table
+          await supabase.from('users').upsert({
+            id: authData.user.id,
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
+            created_at: new Date().toISOString()
           });
         }
       }
@@ -328,7 +337,7 @@ app.post('/api/auth/login', rateLimiter(20, 15 * 60 * 1000), async (req: Request
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    // Sync user login with Supabase Auth & create/verify database row in public.profiles table
+    // Sync user login with Supabase Auth & create/verify database row in profiles and users tables
     try {
       if (supabase) {
         const { data: authData } = await supabase.auth.signUp({
@@ -342,10 +351,19 @@ app.post('/api/auth/login', rateLimiter(20, 15 * 60 * 1000), async (req: Request
         });
 
         if (authData && authData.user) {
+          // Write to profiles table
           await supabase.from('profiles').upsert({
             id: authData.user.id,
             full_name: result.user.name,
             updated_at: new Date().toISOString()
+          });
+
+          // Write to users table
+          await supabase.from('users').upsert({
+            id: authData.user.id,
+            name: result.user.name,
+            email: email.trim().toLowerCase(),
+            created_at: new Date().toISOString()
           });
         }
       }

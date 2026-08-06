@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Mind Mood AI',
   webDir: 'dist',
   server: {
-    url: 'https://mind-shine-guide-main.vercel.app',
+    url: 'https://mind-shine-guide-hi6v.vercel.app',
     cleartext: true
   }
 };
