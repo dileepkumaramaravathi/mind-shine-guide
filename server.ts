@@ -258,7 +258,7 @@ const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunc
 
 // ==================== AUTH ENDPOINTS ====================
 
-app.post('/api/auth/register', rateLimiter(20, 15 * 60 * 1000), (req: Request, res: Response) => {
+app.post('/api/auth/register', rateLimiter(20, 15 * 60 * 1000), async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'All fields (name, email, password) are required.' });
@@ -269,6 +269,23 @@ app.post('/api/auth/register', rateLimiter(20, 15 * 60 * 1000), (req: Request, r
       return res.status(400).json({ error: 'An account with this email already exists.' });
     }
     
+    // Sync registration with Supabase Auth to show in Supabase Dashboard -> Authentication > Users
+    try {
+      if (supabase) {
+        await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password: password,
+          options: {
+            data: {
+              full_name: name.trim()
+            }
+          }
+        });
+      }
+    } catch (authErr: any) {
+      console.warn('[SUPABASE AUTH SYNC] Registration sync warning:', authErr.message);
+    }
+
     // Seed initial notifications to make notifications feed lively and welcoming!
     db.addNotification(
       result.user.id,
