@@ -309,7 +309,7 @@ app.post('/api/auth/register', rateLimiter(20, 15 * 60 * 1000), async (req: Requ
   }
 });
 
-app.post('/api/auth/login', rateLimiter(20, 15 * 60 * 1000), (req: Request, res: Response) => {
+app.post('/api/auth/login', rateLimiter(20, 15 * 60 * 1000), async (req: Request, res: Response) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
@@ -318,6 +318,23 @@ app.post('/api/auth/login', rateLimiter(20, 15 * 60 * 1000), (req: Request, res:
     const result = db.login(email, password);
     if (!result) {
       return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    // Sync user login with Supabase Auth to guarantee they are created/stored in the Supabase Auth dashboard
+    try {
+      if (supabase) {
+        await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password: password,
+          options: {
+            data: {
+              full_name: result.user.name
+            }
+          }
+        });
+      }
+    } catch (authErr: any) {
+      console.warn('[SUPABASE AUTH SYNC] Login sync warning:', authErr.message);
     }
 
     // Set secure HttpOnly cookie for session token
