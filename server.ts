@@ -1562,6 +1562,15 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
+app.get('/api/debug-supabase', (req, res) => {
+  res.json({
+    url: SUPABASE_URL,
+    key_length: SUPABASE_KEY ? SUPABASE_KEY.length : 0,
+    key_prefix: SUPABASE_KEY ? SUPABASE_KEY.substring(0, 15) : 'none',
+    is_fallback: SUPABASE_URL === 'https://geqgbznbgbffcployftk.supabase.co'
+  });
+});
+
 app.get('/api/backend/info', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
   res.json({
     service: 'Mind Mood AI Local Backend',
@@ -1594,14 +1603,6 @@ async function startServer() {
     // Production paths serve statically from 'dist'
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('/api/debug-supabase', (req, res) => {
-      res.json({
-        url: SUPABASE_URL,
-        key_length: SUPABASE_KEY ? SUPABASE_KEY.length : 0,
-        key_prefix: SUPABASE_KEY ? SUPABASE_KEY.substring(0, 15) : 'none',
-        is_fallback: SUPABASE_URL === 'https://geqgbznbgbffcployftk.supabase.co'
-      });
-    });
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
