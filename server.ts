@@ -340,15 +340,29 @@ app.post('/api/auth/login', rateLimiter(20, 15 * 60 * 1000), async (req: Request
     // Sync user login with Supabase Auth & create/verify database row in profiles and users tables
     try {
       if (supabase) {
-        const { data: authData } = await supabase.auth.signUp({
+        let authData: any = null;
+        
+        // 1. Try to sign in first to check if they already exist in Supabase Auth
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: email.trim().toLowerCase(),
-          password: password,
-          options: {
-            data: {
-              full_name: result.user.name
-            }
-          }
+          password: password
         });
+
+        if (!signInError && signInData && signInData.user) {
+          authData = signInData;
+        } else {
+          // 2. If they do not exist yet in Supabase Auth, sign them up
+          const { data: signUpData } = await supabase.auth.signUp({
+            email: email.trim().toLowerCase(),
+            password: password,
+            options: {
+              data: {
+                full_name: result.user.name
+              }
+            }
+          });
+          authData = signUpData;
+        }
 
         if (authData && authData.user) {
           // Write to profiles table
