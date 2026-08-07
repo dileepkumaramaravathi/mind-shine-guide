@@ -7,16 +7,16 @@ const originalFetch = window.fetch;
 
 // Prepend the production Vercel server URL to all local API requests on Mobile
 window.fetch = async function (input, init) {
-  let url = typeof input === 'string' ? input : input.url;
+  let urlStr = typeof input === 'string' ? input : (input as any).url || (input as any).href || '';
   
-  if (url.startsWith('/api/')) {
+  if (urlStr.startsWith('/api/')) {
     const liveBase = 'https://mind-shine-guide-hi6v.vercel.app';
-    url = `${liveBase}${url}`;
+    const newUrl = `${liveBase}${urlStr}`;
     
-    if (typeof input !== 'string') {
-      input = new Request(url, input);
+    if (typeof input === 'string') {
+      input = newUrl;
     } else {
-      input = url;
+      input = new Request(newUrl, input as any);
     }
   }
 
