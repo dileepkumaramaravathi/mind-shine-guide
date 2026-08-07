@@ -1,0 +1,264 @@
+name: Mind Mood AI — Full Test Suite (1500 Test Cases)
+
+on:
+  push:
+    branches: ["main", "master", "develop"]
+  pull_request:
+    branches: ["main", "master"]
+  workflow_dispatch:       # Allow manual trigger from GitHub Actions UI
+
+env:
+  APP_URL: https://mind-shine-guide-main.vercel.app
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 1: Selenium UI Automation — 300 Test Cases
+  # ─────────────────────────────────────────────────────────────────────────
+  selenium-tests:
+    name: "🔵 Selenium UI Tests (300 cases)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install openpyxl selenium requests
+          pip install -r tests/requirements.txt || true
+
+      - name: Create Reports Directory
+        run: mkdir -p tests/reports
+
+      - name: Run Selenium Test Suite (300 cases)
+        run: python tests/selenium_test_suite.py
+        env:
+          APP_URL: ${{ env.APP_URL }}
+
+      - name: Upload Selenium Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 01-Selenium-UI-Test-Report-300-Cases
+          path: tests/reports/selenium_test_report.xlsx
+          retention-days: 90
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 2: Appium Mobile Automation — 300 Test Cases
+  # ─────────────────────────────────────────────────────────────────────────
+  appium-tests:
+    name: "📱 Appium Mobile Tests (300 cases)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install openpyxl Appium-Python-Client requests
+          pip install -r tests/requirements.txt || true
+
+      - name: Create Reports Directory
+        run: mkdir -p tests/reports
+
+      - name: Run Appium Mobile Test Suite (300 cases)
+        run: python tests/appium_test_suite.py
+        env:
+          APP_URL: ${{ env.APP_URL }}
+
+      - name: Upload Appium Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 02-Appium-Mobile-Test-Report-300-Cases
+          path: tests/reports/appium_test_report.xlsx
+          retention-days: 90
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 3: Field Validation Tests — 300 Test Cases
+  # ─────────────────────────────────────────────────────────────────────────
+  field-validation-tests:
+    name: "✅ Field Validation Tests (300 cases)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install openpyxl requests
+          pip install -r tests/requirements.txt || true
+
+      - name: Create Reports Directory
+        run: mkdir -p tests/reports
+
+      - name: Run Field Validation Test Suite (300 cases)
+        run: python tests/field_validation_test_suite.py
+        env:
+          APP_URL: ${{ env.APP_URL }}
+
+      - name: Upload Field Validation Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 03-Field-Validation-Test-Report-300-Cases
+          path: tests/reports/field_validation_test_report.xlsx
+          retention-days: 90
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 4: Vulnerability & Security Tests — 300 Test Cases
+  # ─────────────────────────────────────────────────────────────────────────
+  vulnerability-tests:
+    name: "🔒 Vulnerability & Security Tests (300 cases)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install openpyxl requests
+          pip install -r tests/requirements.txt || true
+
+      - name: Create Reports Directory
+        run: mkdir -p tests/reports
+
+      - name: Run Vulnerability Test Suite (300 cases)
+        run: python tests/vulnerability_test_suite.py
+        env:
+          APP_URL: ${{ env.APP_URL }}
+
+      - name: Upload Vulnerability Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 04-Vulnerability-Security-Test-Report-300-Cases
+          path: tests/reports/vulnerability_test_report.xlsx
+          retention-days: 90
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 5: Load & Performance Tests — 300 Test Cases
+  # ─────────────────────────────────────────────────────────────────────────
+  load-tests:
+    name: "⚡ Load & Performance Tests (300 cases)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install openpyxl requests locust
+          pip install -r tests/requirements.txt || true
+
+      - name: Create Reports Directory
+        run: mkdir -p tests/reports
+
+      - name: Run Load Test Suite (300 cases)
+        run: python tests/load_test_suite.py
+        env:
+          APP_URL: ${{ env.APP_URL }}
+
+      - name: Upload Load Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 05-Load-Performance-Test-Report-300-Cases
+          path: tests/reports/load_test_report.xlsx
+          retention-days: 90
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 6: Summary — Combine all 5 reports into one summary artifact
+  # ─────────────────────────────────────────────────────────────────────────
+  test-summary:
+    name: "📊 Test Summary & Combined Artifact"
+    runs-on: ubuntu-latest
+    needs:
+      - selenium-tests
+      - appium-tests
+      - field-validation-tests
+      - vulnerability-tests
+      - load-tests
+    if: always()
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install openpyxl requests
+          pip install -r tests/requirements.txt || true
+
+      - name: Create Reports Directory
+        run: mkdir -p tests/reports
+
+      - name: Run All 5 Suites Sequentially (Full 1500 Cases)
+        run: python tests/run_all_suites.py
+        env:
+          APP_URL: ${{ env.APP_URL }}
+
+      - name: Upload All 5 Reports as Combined Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ALL-5-Test-Suite-Reports-1500-Cases
+          path: tests/reports/
+          retention-days: 90
+
+      - name: Print Test Summary
+        if: always()
+        run: |
+          echo "================================================================"
+          echo "  MIND MOOD AI — TEST EXECUTION COMPLETE"
+          echo "================================================================"
+          echo "  Suite 1: Selenium UI Automation       — 300 test cases"
+          echo "  Suite 2: Appium Mobile Automation     — 300 test cases"
+          echo "  Suite 3: Field Validation             — 300 test cases"
+          echo "  Suite 4: Vulnerability & Security     — 300 test cases"
+          echo "  Suite 5: Load & Performance           — 300 test cases"
+          echo "  ─────────────────────────────────────────────────────────"
+          echo "  TOTAL:                                  1500 test cases"
+          echo "================================================================"
+          echo ""
+          echo "  📥 Download reports from:"
+          echo "  GitHub Actions > This Workflow Run > Artifacts section"
+          echo ""
+          echo "  Reports available:"
+          ls -la tests/reports/ || echo "  (reports listed above)"
+          echo "================================================================"
