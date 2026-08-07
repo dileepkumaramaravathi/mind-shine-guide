@@ -9,7 +9,8 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "mobile": "set ANDROID_HOME=C:\\Users\\dileep\\AppData\\Local\\Android\\Sdk && npx cap run android"
+    "mobile": "set ANDROID_HOME=C:\\Users\\dileep\\AppData\\Local\\Android\\Sdk && npx cap run android",
+    "build:apk": "cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

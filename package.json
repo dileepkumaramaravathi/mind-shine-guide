@@ -9,7 +9,8 @@
     "start": "npm run --prefix web start",
     "clean": "npm run --prefix web clean",
     "lint": "npm run --prefix web lint",
-    "mobile": "npm run --prefix app mobile"
+    "mobile": "npm run --prefix app mobile",
+    "build:apk": "npm run --prefix app build:apk"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
